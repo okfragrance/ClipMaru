@@ -1,0 +1,83 @@
+/* app/theme.css
+ * BRAND_TOKENS.md(K-Studio3070 ビジュアル基準 v0.1)の実装。
+ * 値を変更する場合はBRAND_TOKENS.mdを先に更新すること(ソースはそちら)。
+ * 「違反を構造的に書けない」思想をそのままビジュアルにも適用: 色や角丸を
+ * 個別コンポーネントで手書きせず、ここのCSS変数/ユーティリティクラスだけを使う。
+ */
+
+:root {
+  /* B1: コアパレット */
+  --k3070-bg-cream: #faebd4;
+  --k3070-bg-cream-light: #fff9f5;
+  --k3070-outline: #3a2a26;
+  --k3070-outline-sub: #55423a;
+  --k3070-tone-sub: #8f553c;
+
+  /* B1: アクセント4色 + ベビーピンク */
+  --k3070-accent-strawberry: #e0567a;
+  --k3070-accent-pistachio: #e3efcb;
+  --k3070-accent-lemon: #fee294;
+  --k3070-accent-lavender: #ead9f8;
+  --k3070-accent-babypink: #febbc8;
+  --k3070-accent-babypink-dark: #ed93b1;
+
+  /* B2②: 角丸スケール */
+  --k3070-radius-card: 16px;
+  --k3070-radius-button: 12px;
+  --k3070-radius-chip: 999px;
+  --k3070-radius-icon-button: 10px;
+
+  /* B2①: ハードドロップシャドウのオフセット(ぼかし0固定) */
+  --k3070-shadow-offset: 4px;
+
+  /* B3: メイン書体は未確定(候補: Zen Maru Gothic / M PLUS Rounded 1c /
+   * Kosugi Maru。BRAND_TOKENS.md B7参照)。フォントファイルを同梱するまでは
+   * 丸みのあるシステムフォントにフォールバックする。 */
+  --k3070-font-family: "Zen Maru Gothic", "M PLUS Rounded 1c", "Kosugi Maru",
+    "Hiragino Maru Gothic ProN", "BIZ UDGothic", sans-serif;
+}
+
+body {
+  background: var(--k3070-bg-cream);
+  font-family: var(--k3070-font-family);
+  color: var(--k3070-outline);
+}
+
+/* B2①: アウトライン + ハードドロップシャドウ(プライマリボタン・カード・主要アイコン枠に適用) */
+.k3070-outline-shadow {
+  border: 2px solid var(--k3070-outline);
+  box-shadow: var(--k3070-shadow-offset) var(--k3070-shadow-offset) 0
+    var(--k3070-outline);
+}
+
+.k3070-card {
+  border-radius: var(--k3070-radius-card);
+  background: var(--k3070-bg-cream-light);
+}
+
+.k3070-button {
+  border-radius: var(--k3070-radius-button);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  padding: 8px 20px;
+  color: var(--k3070-outline);
+  background: var(--k3070-accent-strawberry);
+}
+
+.k3070-icon-button {
+  border-radius: var(--k3070-radius-icon-button);
+}
+
+/* B2③: 通貨チップ(アイコン+数値を角丸ピルに内包)。
+ * Macaron Board / POMO Quest共通の署名パターン。所持数・スコア表示のデフォルト。
+ * コンポーネント版は app/components/CurrencyChip.tsx を使う。 */
+.k3070-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--k3070-radius-chip);
+  padding: 4px 14px;
+  font-weight: 700;
+  color: var(--k3070-outline);
+}
