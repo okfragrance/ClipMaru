@@ -64,18 +64,25 @@ export interface Settings {
 }
 
 /** クリップボードのフォーマット種別 */
-export type ClipFormat = "plain" | "rich";
+export type ClipFormat = "plain" | "rich" | "image";
 
 /** 履歴の1件(relationalテーブル history と1:1。PERSIST_SCHEMA には載せない) */
 export interface HistoryItem {
   id: string;
-  /** プレーンテキスト(常に存在) */
+  /** プレーンテキスト(常に存在)。format='image' のときは "画像 (幅×高さ)" 等の表示用文言 */
   content: string;
-  /** リッチ本文(HTML/RTF)。format が plain のときは null */
+  /** リッチ本文(HTML/RTF)。format が plain/image のときは null */
   contentRich: string | null;
   format: ClipFormat;
-  /** 行トグル: リッチでもプレーンとしてコピーする指定 */
+  /** 行トグル: リッチでもプレーンとしてコピーする指定(画像には使わない) */
   forcePlain: boolean;
   /** 記録時刻(表示はしないが将来の整理機能のため保持) */
   createdAt: number;
+  /**
+   * format='image' のときだけ値を持つ、表示・コピー用の data URL
+   * (`data:image/png;base64,...`)。実データは blobs テーブルにありここでは
+   * list() 時に組み立てたもの(R1: 本文には参照IDのみ、というのは history 行自体の話で、
+   * これは表示用に一時的に組み立てた値であり保存はしない)。
+   */
+  imageDataUrl: string | null;
 }

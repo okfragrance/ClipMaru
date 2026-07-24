@@ -49,6 +49,22 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_history_created ON history (created_at DESC);
   `,
+  // v3: 画像履歴。R1「画像は分離、本文には参照IDのみ」に従い、実データは既存の
+  // blobsテーブルへ、historyには参照IDだけを持たせる(format='image'のとき使用)。
+  // テキスト500件とは別に5件上限で管理する(storage/historyStore.ts側)。
+  `
+  ALTER TABLE history ADD COLUMN blob_id TEXT REFERENCES blobs(id);
+  `,
+  // v4: blobs.data(宣言はBLOB)にbase64文字列を格納する運用だったが、実機で
+  // サムネイル破損・コピー失敗(画像の代わりに古いクリップボード内容が残る)が発生した。
+  // 原因は tauri-plugin-sql の列→JSON変換が「クエリ結果列の宣言型」で分岐する仕様上、
+  // BLOB宣言列は常にバイト配列化され、フロント側でのバイト列→文字列復元の経路に
+  // 何らかの不整合があったこと。宣言から素直にTEXTな列を新設し、そちらを正とする
+  // (BLOB/TEXTの型あいまいさそのものを回避する)。既存のdata列はNOT NULL制約が
+  // あるため書き込みは続けるが、読み取りはdata_textのみを使う。
+  `
+  ALTER TABLE blobs ADD COLUMN data_text TEXT;
+  `,
 ];
 
 export async function openDb(): Promise<Database> {

@@ -23,10 +23,32 @@
 // ・書き戻し(コピー実行時)はフロントエンド側の navigator.clipboard.write() に
 //   'text/html' Blobとして渡すだけでよい(WebView側がCF_HTMLへの再ラップを担当)。
 //   → Rust側に書き込み用コマンドは不要。
+//
+// 画像(CF_BITMAP)の扱い:
+// ・画像を優先して確認し、画像として読めた場合はそれを使う(画像優先)。
+//   スクリーンショットツールや画像編集ソフトの一部は、画像と一緒に付随テキスト
+//   (ファイルパス等)もクリップボードに置くことがあり、「テキストが無いときだけ画像」
+//   という判定だと画像コピーなのに画像扱いされない実例があったための設計。
+// ・【重要・実機検証で判明】raw::get_bitmap の出力は「裸のDIB」ではなく、
+//   先頭にBITMAPFILEHEADER("BM"マジックバイト等14バイト)を自前で書き込んだ、
+//   **それ自体で完結した正式なBMPファイル**(clipboard-winのソースを実際に読んで確認済み)。
+//   そのためファイルヘッダを別途合成する必要は無く、出力をそのまま
+//   image::load_from_memory_with_format(..., ImageFormat::Bmp) に渡せばよい
+//   (当初「DIBにファイルヘッダを合成する」実装をしたが、実機ログで
+//   「未対応のDIBヘッダ形式」と常に失敗することが判明し、二重にヘッダを
+//   付けてしまっていたのが原因だった)。
+// ・BMPのままだと無圧縮で数MBになり得る(スクリーンショット等)ため、デコード後に
+//   圧縮率の良いPNGへ再エンコードしてから保存する(「重くなる」というユーザー要望対策)。
+// ・base64エンコードしてJSONイベント経由でフロントへ渡す(Tauri IPCはJSONなので
+//   バイナリを直接送れない)。DB書き込み(blobsテーブルへの実データ保存)は
+//   フロント側(historyStore.ts)の責務。
 
+use base64::prelude::*;
 use clipboard_win::monitor::Monitor;
-use clipboard_win::{get_clipboard_string, raw, Clipboard};
+use clipboard_win::{formats, get_clipboard_string, raw, Clipboard};
+use image::ImageFormat;
 use serde::Serialize;
+use std::io::Cursor;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
@@ -41,7 +63,10 @@ struct ClipboardChangedPayload {
     content: String,
     #[serde(rename = "contentRich")]
     content_rich: Option<String>,
-    format: &'static str, // "plain" | "rich"
+    /// PNGバイト列をbase64化したもの。画像コピーのときだけ Some。
+    #[serde(rename = "imageBase64")]
+    image_base64: Option<String>,
+    format: &'static str, // "plain" | "rich" | "image"
 }
 
 /// 【R8】ここはデバッグ機能ではなく本番機能。デバッグ隔離の対象外。
@@ -72,7 +97,7 @@ pub fn start_watching(app: AppHandle) {
 /// ため、「連続する完全重複だけをスキップ」という仕様の意図を壊さない。
 fn run_debounced(monitor: &mut Monitor, app: &AppHandle, html_format: Option<u32>) {
     let mut pending_since: Option<Instant> = None;
-    let mut last_emitted: Option<(String, Option<String>)> = None;
+    let mut last_emitted: Option<(String, Option<String>, Option<String>)> = None;
     loop {
         match monitor.try_recv() {
             Ok(true) => {
@@ -82,7 +107,11 @@ fn run_debounced(monitor: &mut Monitor, app: &AppHandle, html_format: Option<u32
                 if let Some(since) = pending_since {
                     if since.elapsed() >= DEBOUNCE {
                         if let Some(payload) = read_clipboard(html_format) {
-                            let key = (payload.content.clone(), payload.content_rich.clone());
+                            let key = (
+                                payload.content.clone(),
+                                payload.content_rich.clone(),
+                                payload.image_base64.clone(),
+                            );
                             if last_emitted.as_ref() != Some(&key) {
                                 last_emitted = Some(key);
                                 let _ = app.emit("clipboard-changed", payload);
@@ -98,11 +127,28 @@ fn run_debounced(monitor: &mut Monitor, app: &AppHandle, html_format: Option<u32
     }
 }
 
+/// 開発ビルドでのみ標準エラー出力にログを出す(R8: 本番ビルドでは消える)。
+/// この監視ループは実機でしか挙動を確認できないため、"どこで止まったか" を
+/// 追えるようにしておく(cargo tauri dev のターミナルに出力される)。
+macro_rules! dbg_log {
+    ($($arg:tt)*) => {
+        if cfg!(debug_assertions) {
+            eprintln!("[clipboard_watcher] {}", format!($($arg)*));
+        }
+    };
+}
+
 fn read_clipboard(html_format: Option<u32>) -> Option<ClipboardChangedPayload> {
-    let content = get_clipboard_string().ok()?;
-    if content.is_empty() {
-        return None; // 画像のみ等、テキスト表現が無いコピーは今回のスコープ外
+    // 画像を優先して試す(テキストが付随していても画像コピーは画像として扱う)
+    if let Some(image_payload) = read_clipboard_image() {
+        return Some(image_payload);
     }
+
+    let content = get_clipboard_string().ok().filter(|s| !s.is_empty());
+    let Some(content) = content else {
+        dbg_log!("画像でもテキストでもないコピー、または両方読み取り失敗");
+        return None;
+    };
 
     let content_rich = html_format.and_then(|fmt| {
         // get_clipboard_string() は既に閉じているので、ここで新規に開き直す
@@ -120,6 +166,54 @@ fn read_clipboard(html_format: Option<u32>) -> Option<ClipboardChangedPayload> {
     Some(ClipboardChangedPayload {
         content,
         content_rich,
+        image_base64: None,
         format,
+    })
+}
+
+fn read_clipboard_image() -> Option<ClipboardChangedPayload> {
+    let _clip = match Clipboard::new_attempts(10) {
+        Ok(c) => c,
+        Err(e) => {
+            dbg_log!("画像確認: クリップボードのopenに失敗 {e:?}");
+            return None;
+        }
+    };
+    if !raw::is_format_avail(formats::CF_BITMAP) {
+        dbg_log!("画像確認: CF_BITMAP形式が無い(画像コピーではない)");
+        return None;
+    }
+    dbg_log!("画像確認: CF_BITMAPを検出、読み取りを試みる");
+
+    // get_bitmap の出力はそれ自体で完結した正式なBMPファイル(先頭にBITMAPFILEHEADER
+    // 込み)。ファイルヘッダの合成は不要で、そのままデコーダに渡せる。
+    let mut bmp = Vec::new();
+    if let Err(e) = raw::get_bitmap(&mut bmp) {
+        dbg_log!("画像確認: get_bitmap失敗 {e:?}");
+        return None;
+    }
+    dbg_log!("画像確認: BMP {}バイト取得", bmp.len());
+
+    let img = match image::load_from_memory_with_format(&bmp, ImageFormat::Bmp) {
+        Ok(img) => img,
+        Err(e) => {
+            dbg_log!("画像確認: image crateでのBMPデコードに失敗 {e:?}");
+            return None;
+        }
+    };
+    let (width, height) = (img.width(), img.height());
+
+    let mut png_bytes = Vec::new();
+    if let Err(e) = img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png) {
+        dbg_log!("画像確認: PNGエンコードに失敗 {e:?}");
+        return None;
+    }
+    dbg_log!("画像確認: PNG化成功 {width}x{height}, {}バイト", png_bytes.len());
+
+    Some(ClipboardChangedPayload {
+        content: format!("画像 ({width}×{height})"),
+        content_rich: None,
+        image_base64: Some(BASE64_STANDARD.encode(&png_bytes)),
+        format: "image",
     })
 }

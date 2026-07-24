@@ -120,6 +120,21 @@ R1(SQLite)/ R2(スキーマ駆動)に従い、ドメインを2つに分ける。
   リッチ、他はプレーンを書き込む(§技術検討2)。
 - 履歴上限 = **500件**(`HISTORY_CAP`)。**MRU方式**: 同一内容を再コピーすると古い行を削除し
   最新として先頭に追加する(同一内容が履歴内に複数行残らない)。
+- 画像履歴(`format='image'`) = **5件**(`IMAGE_CAP`、テキストとは別カウント)。
+  実データは `blobs` テーブルへ、`history.blob_id` が参照するだけ(R1: 本文には参照IDのみ)。
+  `blobs.data` は列宣言こそ `BLOB` だが実際に書き込むのは **base64文字列**(SQLiteは動的型付けで
+  列宣言はヒントに過ぎず、TEXT値をBLOB宣言列に入れても問題ない)。理由:
+  `tauri-plugin-sql` の `execute()` はJSの値が配列だと生の `JsonValue` としてbindされ
+  失敗する(BLOBへの自動変換経路が無い)ため、文字列としてbindできるbase64が唯一実用的な経路。
+  読み取り側もこのプラグインの列→JSON変換が「クエリ結果列の**宣言型**」で分岐する
+  (実行時の値の型ではない)仕様のため、`blobs.data` は常に `Vec<u8>` 経由の数値配列で
+  返ってくる。書き込んだのはbase64(ASCIIのみ)なので、その配列をUTF-8バイト列とみなし
+  `TextDecoder` で復元すればロスレスで元のbase64文字列に戻る(詳細は `historyStore.ts` 冒頭コメント)。
+- 画像の**書き込み**(コピー実行)だけは `navigator.clipboard.write()` を使わず、
+  Rustの専用コマンド `write_clipboard_image`(`src-tauri/src/commands/clipboard_write.rs`)
+  経由で `clipboard-win` に直接書き込む。理由: WebView2の Async Clipboard API は
+  画像書き込みのサポートが不完全/不安定(実機で失敗を確認)。プレーン/リッチは
+  WebView側のAPIで問題なく動くため、画像だけこの例外。
 
 ### 主要ファイル
 

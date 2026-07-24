@@ -13,7 +13,9 @@ import type { HistoryStore } from "../../storage/historyStore";
 interface ClipboardChangedPayload {
   content: string;
   contentRich: string | null;
-  format: "plain" | "rich";
+  /** format='image' のときだけ値を持つ、PNGバイト列のbase64文字列 */
+  imageBase64: string | null;
+  format: "plain" | "rich" | "image";
 }
 
 export function useClipboardWatcher(
@@ -31,11 +33,12 @@ export function useClipboardWatcher(
         "clipboard-changed",
         (event) => {
           void (async () => {
-            await history.add({
-              content: event.payload.content,
-              contentRich: event.payload.contentRich,
-              format: event.payload.format,
-            });
+            const { format, content, contentRich, imageBase64 } = event.payload;
+            if (format === "image" && imageBase64) {
+              await history.addImage({ content, imageBase64 });
+            } else {
+              await history.add({ content, contentRich, format });
+            }
             onChanged();
           })();
         }

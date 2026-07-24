@@ -4,8 +4,7 @@
 // usePhrasebook / applySetting 経由で必ず Persistence(R2)を通す。
 // 色・角丸は theme.css のCSS変数のみ参照(B6: コンポーネントに直書きしない)。
 //
-// 未実装(次フェーズ): バックアップ(export・import)/ 画像履歴 / システムトレイ /
-// ウィンドウ位置記憶。
+// 未実装(次フェーズ): システムトレイ / ウィンドウ位置記憶。
 
 import { useEffect, useState } from "react";
 import { useAppState } from "./hooks/useAppState";
@@ -22,6 +21,7 @@ import { FoldersTab } from "./tabs/FoldersTab";
 import type { TabName } from "../core/types";
 import type { Engine } from "../core/engine";
 import type { Persistence } from "../storage/persistence";
+import { todayKey } from "../core/date";
 
 async function setWindowAlwaysOnTop(value: boolean): Promise<void> {
   try {
@@ -88,6 +88,50 @@ function AppInner() {
   const changeTheme = (t: string) => {
     setTheme(t);
     applySetting({ theme: t });
+  };
+
+  const backupExport = async () => {
+    if (!persist) return;
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const path = await save({
+        defaultPath: `ClipMaru_backup_${todayKey()}.json`,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!path) return; // キャンセル
+      const data = await persist.exportJson();
+      await writeTextFile(path, JSON.stringify(data, null, 2));
+      toast("バックアップを保存しました");
+    } catch {
+      toast("バックアップの保存に失敗しました");
+    }
+  };
+
+  const backupImport = async () => {
+    if (!persist) return;
+    if (!window.confirm("現在のデータは上書きされます。バックアップから復元しますか?")) {
+      return;
+    }
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      const path = await open({
+        multiple: false,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!path || Array.isArray(path)) return; // キャンセル
+      const text = await readTextFile(path);
+      const data: unknown = JSON.parse(text);
+      if (typeof data !== "object" || data === null) {
+        throw new Error("invalid backup file");
+      }
+      await persist.importJson(data as Record<string, unknown>);
+      toast("復元しました。アプリを再読み込みします");
+      window.location.reload();
+    } catch {
+      toast("復元に失敗しました。ファイルを確認してください");
+    }
   };
 
   return (
@@ -193,7 +237,7 @@ function AppInner() {
         )}
       </div>
 
-      {/* 設定パネル(テーマ切替。バックアップは次フェーズ) */}
+      {/* 設定パネル(テーマ切替・バックアップ保存/復元) */}
       {settingsOpen && (
         <>
           <div
@@ -243,9 +287,43 @@ function AppInner() {
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: 10, color: "var(--sub)", marginTop: 12, lineHeight: 1.5 }}>
-              バックアップ(保存/復元)は次フェーズで追加します。
-            </p>
+            <div style={{ fontSize: 10.5, color: "var(--sub)", fontWeight: 700, marginTop: 14, marginBottom: 6 }}>
+              バックアップ(カテゴリ・定型文)
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => void backupExport()}
+                style={{
+                  flex: 1,
+                  padding: "7px 0",
+                  borderRadius: 8,
+                  border: "2px solid var(--border)",
+                  background: "var(--panel)",
+                  color: "var(--ink)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                保存
+              </button>
+              <button
+                onClick={() => void backupImport()}
+                style={{
+                  flex: 1,
+                  padding: "7px 0",
+                  borderRadius: 8,
+                  border: "2px solid var(--border)",
+                  background: "var(--panel)",
+                  color: "var(--ink)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                復元
+              </button>
+            </div>
             <button
               onClick={() => setSettingsOpen(false)}
               style={{
