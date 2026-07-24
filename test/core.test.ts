@@ -200,8 +200,8 @@ describe("schema.ts", () => {
   it("defaultStateは毎回新インスタンス(共有参照事故なし)", () => {
     const a = defaultState();
     const b = defaultState();
-    (a.progress as { totalXp: number }).totalXp = 999;
-    expect((b.progress as { totalXp: number }).totalXp).toBe(0);
+    (a.categories as unknown[]).push({ id: "x", name: "x", items: [] });
+    expect((b.categories as unknown[]).length).toBe(0);
   });
 
   it("【R9】全フィールドにscopeが宣言されている", () => {

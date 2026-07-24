@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    annystation_template_tauri_lib::run()
+    clipmaru_lib::run()
 }

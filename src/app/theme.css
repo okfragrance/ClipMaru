@@ -81,3 +81,65 @@ body {
   font-weight: 700;
   color: var(--k3070-outline);
 }
+
+/* ===================================================================
+ * ClipMaru トークン層(BRAND_TOKENS B5-2: ライフスタイル/ユーティリティ枠)
+ * プロトタイプ(clipboard_prototype_v3.html)の CSS 変数命名を踏襲。
+ * テーマ切替は :root[data-theme="..."] でこの変数セットを差し替える方式(§5)。
+ * コンポーネントは HEX/px を直書きせず、必ずこの変数を参照する(B6)。
+ * =================================================================== */
+:root,
+:root[data-theme="cream"] {
+  --cream: #fbf6ee; /* アプリ背景・淡い面 */
+  --panel: #ffffff; /* パネル・行の面 */
+  --ink: #3a3229; /* テキスト・アウトライン濃色 */
+  --sub: #8a7f6e; /* 補助テキスト */
+  --accent: #f2a65a; /* アクセント(オレンジ) */
+  --accent-deep: #e08838; /* アクセント濃色 */
+  --accent-soft: #fff3e0; /* 選択/現在ハイライト */
+  --border: #e8dcc8; /* 罫線・枠 */
+  --shadow: 3px 3px 0 rgba(58, 50, 41, 0.12);
+  --plain-tag: #6fa8a0; /* プレーン表示のタグ色 */
+  --rich-tag: #c97b84; /* リッチ表示のタグ色 */
+  --danger: #c0392b; /* 削除など破壊的操作 */
+  --danger-soft: #fdeeee;
+  --radius: 14px;
+}
+
+/* ダークテーマ(§5: 最低1つのダーク相当を用意)。オレンジのアクセントは維持。 */
+:root[data-theme="dark"] {
+  --cream: #2a2622;
+  --panel: #35302b;
+  --ink: #f0e9de;
+  --sub: #a89b88;
+  --accent: #e0983f;
+  --accent-deep: #c67f2c;
+  --accent-soft: #47372a;
+  --border: #4a433b;
+  --shadow: 3px 3px 0 rgba(0, 0, 0, 0.4);
+  --plain-tag: #5e938c;
+  --rich-tag: #c97b84;
+  --danger: #e57366;
+  --danger-soft: #43302e;
+  --radius: 14px;
+}
+
+/* ClipMaru はテーマ変数で背景色を制御する(k3070 の cream 固定を上書き) */
+body.clipmaru {
+  margin: 0;
+  background: var(--cream);
+  color: var(--ink);
+}
+* {
+  box-sizing: border-box;
+}
+
+/* 一覧行(定型文・区切り線・履歴・フォルダ)共通のホバー強調。
+ * インラインstyleでbackgroundを明示している行(選択中など)はそちらが優先されるため、
+ * このクラスの:hoverと衝突しない。 */
+.clip-row {
+  transition: background 0.12s ease;
+}
+.clip-row:hover {
+  background: var(--cream);
+}

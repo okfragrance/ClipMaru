@@ -35,6 +35,20 @@ const MIGRATIONS: string[] = [
     payload    TEXT                 -- 巻き戻し用に付与内容を記録
   );
   `,
+  // v2: クリップボード履歴。§4 でバックアップ対象外のため kv(PERSIST_SCHEMA)
+  // ではなく専用テーブルで扱う。追記が高頻度・500件で古いものを自動削除する。
+  // リッチ/プレーンは両方保持し、コピー時にどちらを書くか force_plain で選ぶ。
+  `
+  CREATE TABLE history (
+    id           TEXT PRIMARY KEY,
+    content      TEXT NOT NULL,               -- プレーン(常に存在)
+    content_rich TEXT,                        -- リッチ(HTML/RTF)。plainならNULL
+    format       TEXT NOT NULL,               -- 'plain' | 'rich'
+    force_plain  INTEGER NOT NULL DEFAULT 0,  -- 1=リッチでもプレーンでコピー
+    created_at   INTEGER NOT NULL
+  );
+  CREATE INDEX idx_history_created ON history (created_at DESC);
+  `,
 ];
 
 export async function openDb(): Promise<Database> {

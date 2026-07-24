@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "annystation-template-tauri",
+  "productName": "ClipMaru",
   "version": "0.1.0",
-  "identifier": "com.annystation.template-tauri",
+  "identifier": "com.annystation.clipmaru",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "annystation-template-tauri",
-        "width": 800,
-        "height": 600
+        "title": "ClipMaru",
+        "width": 320,
+        "height": 640,
+        "minWidth": 280,
+        "minHeight": 360,
+        "resizable": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {

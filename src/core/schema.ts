@@ -3,6 +3,12 @@
 // save / load / snapshot / export / プロフィール切替 の全員がここだけを見る。
 // 状態を1つ追加するとき、触るのはこのファイル1箇所。
 // 手書きの collect/apply 列挙を書いた時点でルール違反。
+//
+// ※ 触ってよいのは下部の PERSIST_SCHEMA 定数(「アプリごとに書き換える」箇所)のみ。
+//   field / defaultState / validateSchema の機械部分は検証済み。改変しない。
+
+import type { Category, FolderEntry, Settings } from "./types.js";
+import type { SessionState } from "./session.js";
 
 export type PersistScope = "profile" | "shared"; // R9: 分離/共有を必ず宣言
 
@@ -25,16 +31,25 @@ export function field<T>(
 }
 
 // ─────────────────────────────────────────────
-// ↓ アプリごとにここを書き換える(テンプレートのサンプル定義)
+// ↓ アプリごとにここを書き換える(ClipMaru のフィールド定義)
+// 単一ユーザーのため全フィールド scope: "shared"(R9: 多重データなし)。
+// カテゴリ・定型文は categories 1フィールドに集約(配列内包で deepMerge を無傷通過)。
+// 履歴は §4 でバックアップ対象外なので relational テーブル側(historyStore)で扱う。
 // ─────────────────────────────────────────────
 export const PERSIST_SCHEMA: readonly FieldDef[] = [
-  field("settings", "shared", () => ({ theme: "macaron", soundOn: true })),
-  field("progress", "profile", () => ({ totalXp: 0, unlockedIds: [] as string[] })),
-  field("dailyState", "profile", () => ({
-    lastRolloverKey: "",
-    tasksDone: [] as string[],
-  })),
-  field("session", "profile", () => ({ lastSeenMs: 0 })),
+  field(
+    "settings",
+    "shared",
+    (): Settings => ({
+      theme: "cream",
+      alwaysOnTop: false,
+      activeTab: "history",
+      activeCategoryId: "",
+    })
+  ),
+  field("categories", "shared", (): Category[] => []),
+  field("folders", "shared", (): FolderEntry[] => []),
+  field("session", "shared", (): SessionState => ({ lastSeenMs: 0 })),
 ] as const;
 
 /** 全キーのデフォルト状態(deep-merge復元の土台)。呼ぶたびに新インスタンス。 */

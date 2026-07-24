@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClipMaru - プロトタイプ v3</title>
+<style>
+  :root {
+    --cream: #FBF6EE;
+    --panel: #FFFFFF;
+    --ink: #3A3229;
+    --sub: #8A7F6E;
+    --accent: #F2A65A;
+    --accent-deep: #E08838;
+    --border: #E8DCC8;
+    --shadow: 3px 3px 0 rgba(58,50,41,0.12);
+    --plain-tag: #6FA8A0;
+    --rich-tag: #C97B84;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+    background: var(--cream);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px;
+    color: var(--ink);
+  }
+
+  /* 細長いウィンドウ形状 */
+  .app {
+    width: 300px;
+    background: var(--panel);
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    background: var(--accent);
+    border-bottom: 2.5px solid var(--ink);
+  }
+
+  .titlebar h1 {
+    font-size: 13px;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .pin-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    background: rgba(255,255,255,0.5);
+    border: 1.5px solid var(--ink);
+    border-radius: 20px;
+    padding: 3px 8px;
+    user-select: none;
+  }
+
+  .pin-toggle .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--sub);
+    transition: background .15s ease;
+  }
+
+  .pin-toggle.on .dot { background: #4CAF50; }
+  .pin-toggle.on { border-color: #4CAF50; }
+
+  .settings-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink);
+    background: rgba(255,255,255,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border);
+    background: var(--cream);
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--sub);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    user-select: none;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent-deep); }
+
+  .content {
+    max-height: 640px;
+    overflow-y: auto;
+    padding: 10px 10px 14px;
+  }
+
+  .hint {
+    font-size: 10.5px;
+    color: var(--sub);
+    text-align: center;
+    margin: 2px 0 8px;
+  }
+
+  /* ---------- 履歴 ---------- */
+  .history-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 6px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .history-row:hover { background: var(--cream); }
+  .history-row .htext {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .format-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .format-tag.plain { background: var(--plain-tag); }
+  .format-tag.rich { background: var(--rich-tag); }
+
+  .format-toggle-btn {
+    font-size: 9.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: white;
+    background: var(--rich-tag);
+    transition: background .12s ease;
+  }
+  .format-toggle-btn.is-plain {
+    background: var(--plain-tag);
+  }
+
+  /* ---------- カテゴリダイヤル ---------- */
+  .phrases-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    background: var(--panel);
+    padding-bottom: 2px;
+  }
+  .dial {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 6px;
+    margin-bottom: 8px;
+    background: var(--cream);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    cursor: ns-resize;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+  .dial-arrow {
+    font-size: 12px;
+    color: var(--sub);
+    cursor: pointer;
+    padding: 4px 7px;
+    flex-shrink: 0;
+  }
+  .dial-arrow:hover { color: var(--ink); }
+  .dial-center {
+    flex: 1;
+    text-align: center;
+    overflow: hidden;
+    height: 24px;
+    position: relative;
+    cursor: pointer;
+  }
+  .dial-label {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    font-size: 14px;
+    font-weight: 700;
+    transition: transform .16s ease, opacity .16s ease;
+  }
+  .dial-counter {
+    font-size: 9.5px;
+    color: var(--sub);
+    flex-shrink: 0;
+    width: 32px;
+    text-align: center;
+  }
+
+  /* カテゴリ一覧オーバーレイ */
+  .overlay-bg {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(58,50,41,0.35);
+    z-index: 10;
+  }
+  .overlay-bg.show { display: block; }
+
+  .category-panel {
+    position: absolute;
+    top: 60px;
+    left: 10px;
+    right: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    z-index: 11;
+  }
+  .category-panel-item {
+    padding: 9px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .category-panel-item:last-child { border-bottom: none; }
+  .category-panel-item:hover { background: var(--cream); }
+  .category-panel-item.current { background: #FFF3E0; color: var(--accent-deep); }
+  .category-delete-btn {
+    font-size: 11px;
+    color: var(--sub);
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .category-delete-btn:hover { color: #C97B84; background: #FFF0F0; }
+
+  .category-panel-mode-title {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-deep);
+    background: #FFF3E0;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .category-panel-add {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+  }
+  .category-add-input {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .category-add-btn {
+    border: 2px solid var(--ink);
+    background: var(--accent);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* 定型文 編集パネル */
+  .edit-panel {
+    position: absolute;
+    top: 60px;
+    left: 10px;
+    right: 10px;
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    z-index: 11;
+    padding: 12px;
+  }
+  .edit-panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .edit-field-label {
+    display: block;
+    font-size: 10.5px;
+    color: var(--sub);
+    font-weight: 700;
+    margin: 8px 0 3px;
+  }
+  .edit-input, .edit-textarea {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--ink);
+    resize: vertical;
+  }
+  .edit-textarea { min-height: 90px; }
+  .edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .edit-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 8px;
+    border: 2px solid var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .edit-btn.cancel { background: white; color: var(--ink); }
+  .edit-btn.save { background: var(--accent); color: var(--ink); }
+
+  /* バックアップ設定パネル(appの外、画面中央に表示) */
+  .settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 260px;
+    background: var(--panel);
+    border: 2.5px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    z-index: 101;
+  }
+  .settings-desc {
+    font-size: 11px;
+    color: var(--sub);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  #settingsOverlayBg {
+    position: fixed;
+    z-index: 100;
+  }
+
+  /* ---------- 定型文一覧 ---------- */
+  .phrase-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 4px 7px 8px;
+    border-bottom: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .phrase-row:hover { background: var(--cream); }
+  .phrase-row.dragging { opacity: 0.35; }
+
+  .phrase-text {
+    flex: 1;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    padding: 2px 0;
+  }
+
+  .edit-icon { font-size: 12px; color: var(--sub); flex-shrink: 0; padding: 2px 4px; cursor: pointer; opacity: 0; transition: opacity .12s ease; }
+  .phrase-row:hover .edit-icon { opacity: 1; }
+
+  .drag-handle {
+    color: var(--sub);
+    font-size: 13px;
+    letter-spacing: -2px;
+    flex-shrink: 0;
+    cursor: grab;
+    padding: 2px 4px;
+  }
+
+  /* 区切り線行 */
+  .divider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px;
+    margin: 1px 0;
+  }
+  .divider-row:hover { background: var(--cream); border-radius: 6px; }
+  .divider-row .divider-line {
+    flex: 1;
+    height: 1.5px;
+    background: var(--border);
+  }
+  .divider-row .divider-label {
+    font-size: 10.5px;
+    color: var(--sub);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    min-width: 10px;
+  }
+  .divider-row .divider-label[contenteditable="true"] {
+    background: #FFF9EE;
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .divider-row .drag-handle { flex-shrink: 0; }
+
+  .numbering-toggle {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: white;
+    color: var(--sub);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .numbering-toggle.on {
+    background: var(--accent);
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .add-row-buttons {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .add-phrase, .add-divider {
+    flex: 1;
+    padding: 7px 8px;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--sub);
+    text-align: center;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  /* 選択モード */
+  .select-checkbox {
+    flex-shrink: 0;
+    font-size: 15px;
+    width: 18px;
+    text-align: center;
+    color: var(--accent-deep);
+  }
+  .phrase-row.selectable { cursor: pointer; }
+  .phrase-row.selected-row { background: #FFF3E0; }
+  .divider-row.selection-dimmed { opacity: 0.5; }
+
+  .selection-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    margin-bottom: 6px;
+    background: #FFF3E0;
+    border: 2px solid var(--accent-deep);
+    border-radius: 10px;
+  }
+  .selection-bar span {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-deep);
+  }
+  .selection-bar button {
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #selectionMoveBtn { background: var(--accent); color: var(--ink); }
+  #selectionDeleteBtn { background: #F3D6D6; color: #8A3A3A; }
+  #selectionCancelBtn { background: white; color: var(--ink); }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: white;
+    padding: 9px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all .2s ease;
+    pointer-events: none;
+    max-width: 80vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 右クリックコンテキストメニュー */
+  .context-menu {
+    position: fixed;
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    z-index: 20;
+    overflow: hidden;
+    min-width: 170px;
+  }
+  .context-menu-item {
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .context-menu-item:hover { background: var(--cream); }
+  .context-menu-item + .context-menu-item { border-top: 1px solid var(--border); }
+  .context-menu-danger { color: #C0392B; }
+  .context-menu-danger:hover { background: #FDEEEE; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="titlebar">
+    <h1>📋 ClipMaru</h1>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div class="settings-btn" id="settingsBtn" title="バックアップ">⚙</div>
+      <div class="pin-toggle" id="pinToggle"><span class="dot"></span><span id="pinLabel">常に表示 OFF</span></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="history">履歴</div>
+    <div class="tab" data-tab="phrases">定型文</div>
+  </div>
+
+  <div class="content" id="historyView">
+    <div class="hint">クリックでコピー(リッチ項目は右ボタンでプレーンに切替)</div>
+    <div id="historyList"></div>
+  </div>
+
+  <div class="content" id="phrasesView" style="display:none; position:relative;">
+    <div class="phrases-toolbar">
+      <div class="dial" id="dial">
+        <div class="dial-arrow" id="dialUp">▲</div>
+        <div class="dial-center" id="dialCenter"></div>
+        <div class="dial-arrow" id="dialDown">▼</div>
+        <div class="dial-counter" id="dialCounter"></div>
+      </div>
+      <div class="selection-bar" id="selectionBar">
+        <span id="selectionCount">0件選択中</span>
+        <button id="selectionMoveBtn">移動</button>
+        <button id="selectionDeleteBtn">削除</button>
+        <button id="selectionCancelBtn">キャンセル</button>
+      </div>
+      <div class="add-row-buttons" id="addRowButtons">
+        <div class="add-phrase" id="addPhraseBtn">＋ 定型文</div>
+        <div class="add-divider" id="addDividerBtn">＋ 区切り線</div>
+      </div>
+    </div>
+
+    <div class="overlay-bg" id="overlayBg"></div>
+    <div class="category-panel" id="categoryPanel" style="display:none;"></div>
+    <div class="edit-panel" id="editPanel" style="display:none;">
+      <div class="edit-panel-title">定型文を編集</div>
+      <label class="edit-field-label">見出し(空欄なら本文から自動生成)</label>
+      <input type="text" id="editLabelInput" class="edit-input">
+      <label class="edit-field-label">中身(コピーされる内容)</label>
+      <textarea id="editContentInput" class="edit-textarea"></textarea>
+      <div class="edit-actions">
+        <button class="edit-btn cancel" id="editCancelBtn">キャンセル</button>
+        <button class="edit-btn save" id="editSaveBtn">保存</button>
+      </div>
+    </div>
+    <div class="context-menu" id="contextMenu" style="display:none;">
+      <div class="context-menu-item" id="ctxAddPhrase">ここに定型文を追加</div>
+      <div class="context-menu-item" id="ctxAddDivider">ここに区切り線を追加</div>
+      <div class="context-menu-item" id="ctxSelectMove">選択して移動...</div>
+      <div class="context-menu-item context-menu-danger" id="ctxDelete">削除</div>
+    </div>
+
+    <div id="phraseList"></div>
+  </div>
+</div>
+
+<div class="overlay-bg" id="settingsOverlayBg"></div>
+<div class="settings-panel" id="settingsPanel" style="display:none;">
+  <div class="edit-panel-title">バックアップ</div>
+  <div class="settings-desc">カテゴリ・定型文をまとめてファイルに保存/復元します。</div>
+  <button class="edit-btn save" id="exportBtn" style="width:100%; margin-bottom:8px;">バックアップを保存(.json)</button>
+  <button class="edit-btn cancel" id="importBtn" style="width:100%;">バックアップから復元</button>
+  <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+  <div class="edit-actions" style="margin-top:12px;">
+    <button class="edit-btn cancel" id="settingsCloseBtn">閉じる</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 1300);
+}
+
+// タブ切り替え
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    document.getElementById('historyView').style.display = target === 'history' ? 'block' : 'none';
+    document.getElementById('phrasesView').style.display = target === 'phrases' ? 'block' : 'none';
+  });
+});
+
+// 常時表示トグル(見た目のみ。実装ではOS側のalways-on-topに接続)
+const pinToggle = document.getElementById('pinToggle');
+const pinLabel = document.getElementById('pinLabel');
+let pinned = false;
+pinToggle.addEventListener('click', () => {
+  pinned = !pinned;
+  pinToggle.classList.toggle('on', pinned);
+  pinLabel.textContent = pinned ? '常に表示 ON' : '常に表示 OFF';
+  showToast(pinned ? '常に手前に表示します' : '通常表示に戻します');
+});
+
+// ---------- バックアップ(エクスポート/インポート) ----------
+const settingsPanel = document.getElementById('settingsPanel');
+const settingsOverlayBg = document.getElementById('settingsOverlayBg');
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  settingsPanel.style.display = 'block';
+  settingsOverlayBg.classList.add('show');
+});
+function closeSettingsPanel() {
+  settingsPanel.style.display = 'none';
+  settingsOverlayBg.classList.remove('show');
+}
+document.getElementById('settingsCloseBtn').addEventListener('click', closeSettingsPanel);
+settingsOverlayBg.addEventListener('click', closeSettingsPanel);
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const payload = JSON.stringify({ categories, phrasesData }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'clipmaru_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('バックアップを保存しました');
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.categories || !data.phrasesData) throw new Error('invalid format');
+      categories.length = 0;
+      categories.push(...data.categories);
+      Object.keys(phrasesData).forEach(k => delete phrasesData[k]);
+      Object.assign(phrasesData, data.phrasesData);
+      activeIndex = 0;
+      renderDial();
+      renderPhrases();
+      closeSettingsPanel();
+      showToast('バックアップから復元しました');
+    } catch (err) {
+      showToast('復元に失敗しました(ファイル形式を確認してください)');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ---------- 履歴(たくさん保持する想定でサンプルを多めに) ----------
+const sampleTexts = [
+  ["https://k-studio3070.example.com/erde-marches", "plain"],
+  ["みどり手帖 - Zen Maru Gothic / クリーム基調のジャーナルアプリ", "rich"],
+  ["npm install @tauri-apps/api", "plain"],
+  ["お世話になっております。ご連絡いただいた件、承知いたしました。", "rich"],
+  ["amitto: ゲージ連動のドットグリッドエディタ", "plain"],
+  ["git commit -m \"fix: clipboard sync\"", "plain"],
+  ["資料を添付いたしましたので、ご査収ください。", "rich"],
+  ["cargo build --release", "plain"],
+  ["寒中お見舞い申し上げます", "rich"],
+  ["SELECT * FROM clips ORDER BY created_at DESC", "plain"],
+];
+const historyData = [];
+for (let i = 0; i < 30; i++) {
+  const [text, format] = sampleTexts[i % sampleTexts.length];
+  historyData.push({ text: text + (i >= sampleTexts.length ? ` (${i})` : ''), format });
+}
+
+const historyList = document.getElementById('historyList');
+historyData.forEach(item => {
+  const el = document.createElement('div');
+  el.className = 'history-row';
+  el.innerHTML = `
+    <span class="htext">${item.text}</span>
+    ${item.format === 'rich' ? '<button class="format-toggle-btn">リッチ</button>' : ''}
+  `;
+  el.addEventListener('click', () => {
+    const btn = el.querySelector('.format-toggle-btn');
+    const isPlainMode = btn && btn.classList.contains('is-plain');
+    showToast(isPlainMode ? 'プレーンテキストでコピー' : 'コピーしました(そのままの形式)');
+  });
+  const toggleBtn = el.querySelector('.format-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nowPlain = toggleBtn.classList.toggle('is-plain');
+      toggleBtn.textContent = nowPlain ? 'プレーン' : 'リッチ';
+      showToast(nowPlain ? 'プレーンテキストに切り替え、コピーしました' : 'リッチテキストに戻して、コピーしました');
+    });
+  }
+  historyList.appendChild(el);
+});
+
+// ---------- カテゴリ(19個) ----------
+const categories = [
+  "寒中見舞い", "喪中はがき", "年賀状", "仕事", "挨拶",
+  "コード", "よく使う", "住所", "差出人", "備考欄",
+  "定型送付", "見積", "請求", "お詫び", "お礼",
+  "案内文", "テンプレ雑", "その他1", "その他2"
+];
+
+// 見出しを中身の先頭から自動生成
+function autoLabel(content) {
+  const firstLine = (content || '').trim().split('\n')[0];
+  return firstLine.length > 14 ? firstLine.slice(0, 14) + '…' : firstLine;
+}
+
+// 定型文データ: フレーズ行と区切り線行を混在させたリスト構造
+// { type: 'phrase', label, content } / { type: 'divider', label }
+const phrasesData = {};
+categories.forEach((cat, ci) => {
+  const count = ci % 5 === 0 ? 40 : (ci % 3 === 0 ? 8 : 15);
+  const items = [];
+  for (let i = 0; i < count; i++) {
+    if (i > 0 && i % 10 === 0) {
+      items.push({ type: 'divider', label: '', auto: true });
+    }
+    const content = `${cat}の定型文の本文です。実際にコピー・貼り付けされる内容はここに入ります。(${i + 1})`;
+    items.push({
+      type: 'phrase',
+      label: autoLabel(content),
+      content
+    });
+  }
+  phrasesData[cat] = items;
+});
+
+let activeIndex = 0;
+let selectionMode = false;
+let selectedItems = new Set();
+const dialCenter = document.getElementById('dialCenter');
+const dialCounter = document.getElementById('dialCounter');
+const phraseList = document.getElementById('phraseList');
+let dragSrcIndex = null;
+
+function renderDial(direction) {
+  const cat = categories[activeIndex];
+  const label = document.createElement('div');
+  label.className = 'dial-label';
+  label.textContent = cat;
+  label.style.transform = direction === 'down' ? 'translateY(18px)' : direction === 'up' ? 'translateY(-18px)' : 'translateY(0)';
+  label.style.opacity = direction ? '0' : '1';
+  dialCenter.innerHTML = '';
+  dialCenter.appendChild(label);
+  requestAnimationFrame(() => {
+    label.style.transform = 'translateY(0)';
+    label.style.opacity = '1';
+  });
+  dialCounter.textContent = (activeIndex + 1) + ' / ' + categories.length;
+}
+
+function changeCategory(delta) {
+  activeIndex = (activeIndex + delta + categories.length) % categories.length;
+  renderDial(delta > 0 ? 'down' : 'up');
+  renderPhrases();
+}
+
+function jumpToCategory(index) {
+  activeIndex = index;
+  renderDial();
+  renderPhrases();
+  closeCategoryPanel();
+}
+
+function renderPhrases() {
+  const cat = categories[activeIndex];
+  phraseList.innerHTML = '';
+  let groupCounter = 0;
+  let groupNumbered = false;
+  let phraseCounterInGroup = 0;
+  phrasesData[cat].forEach((item, i) => {
+    let el;
+    if (item.type === 'divider') {
+      let displayLabel;
+      if (item.auto) {
+        groupCounter++;
+        displayLabel = 'グループ' + groupCounter;
+      } else {
+        displayLabel = item.label;
+      }
+      groupNumbered = !!item.numbered;
+      phraseCounterInGroup = 0;
+      el = document.createElement('div');
+      el.className = 'divider-row' + (selectionMode ? ' selection-dimmed' : '');
+      el.draggable = !selectionMode;
+      el.dataset.index = i;
+      el.innerHTML = `
+        <span class="divider-line"></span>
+        <span class="divider-label" tabindex="0">${displayLabel}</span>
+        <span class="divider-line"></span>
+        <button class="numbering-toggle ${item.numbered ? 'on' : ''}" title="このグループの定型文に番号を表示(見た目のみ)">#</button>
+        <span class="drag-handle">⠿</span>
+      `;
+      el.querySelector('.numbering-toggle').addEventListener('click', (e) => {
+        e.stopPropagation();
+        item.numbered = !item.numbered;
+        renderPhrases();
+        showToast(item.numbered ? 'この下のグループに番号を表示' : '番号表示をオフ');
+      });
+      if (!selectionMode) {
+        const labelEl = el.querySelector('.divider-label');
+        labelEl.addEventListener('dblclick', () => {
+          labelEl.contentEditable = true;
+          labelEl.focus();
+        });
+        labelEl.addEventListener('blur', () => {
+          labelEl.contentEditable = false;
+          const newText = labelEl.textContent.trim();
+          if (newText !== displayLabel) {
+            item.auto = false;
+            item.label = newText;
+            renderPhrases();
+          }
+        });
+      }
+    } else {
+      el = document.createElement('div');
+      el.className = 'phrase-row';
+      el.draggable = !selectionMode;
+      el.dataset.index = i;
+      let displayText = item.label;
+      if (groupNumbered) {
+        phraseCounterInGroup++;
+        displayText = phraseCounterInGroup + '. ' + item.label;
+      }
+
+      if (selectionMode) {
+        const checked = selectedItems.has(item);
+        el.classList.add('selectable');
+        if (checked) el.classList.add('selected-row');
+        el.innerHTML = `
+          <span class="select-checkbox">${checked ? '☑' : '☐'}</span>
+          <span class="phrase-text">${displayText}</span>
+        `;
+        el.addEventListener('click', () => {
+          if (selectedItems.has(item)) selectedItems.delete(item);
+          else selectedItems.add(item);
+          updateSelectionBar();
+          renderPhrases();
+        });
+      } else {
+        el.innerHTML = `
+          <span class="phrase-text">${displayText}</span>
+          <span class="edit-icon" title="編集">✎</span>
+          <span class="drag-handle">⠿</span>
+        `;
+        const textEl = el.querySelector('.phrase-text');
+        textEl.addEventListener('click', () => {
+          const preview = item.content.length > 18 ? item.content.slice(0, 18) + '…' : item.content;
+          showToast('コピーしました: ' + preview);
+        });
+        el.querySelector('.edit-icon').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditPanel(item);
+        });
+      }
+    }
+
+    el.addEventListener('dragstart', () => {
+      dragSrcIndex = i;
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+    el.addEventListener('dragover', (e) => e.preventDefault());
+    el.addEventListener('drop', () => {
+      const arr = phrasesData[cat];
+      const moved = arr.splice(dragSrcIndex, 1)[0];
+      arr.splice(i, 0, moved);
+      renderPhrases();
+      showToast('並べ替えました');
+    });
+
+    phraseList.appendChild(el);
+  });
+}
+
+function updateSelectionBar() {
+  const bar = document.getElementById('selectionBar');
+  const addButtons = document.getElementById('addRowButtons');
+  if (selectionMode) {
+    bar.style.display = 'flex';
+    addButtons.style.display = 'none';
+    document.getElementById('selectionCount').textContent = selectedItems.size + '件選択中';
+  } else {
+    bar.style.display = 'none';
+    addButtons.style.display = 'flex';
+  }
+}
+
+function enterSelectionMode(initialItem) {
+  selectionMode = true;
+  selectedItems = new Set();
+  if (initialItem) selectedItems.add(initialItem);
+  updateSelectionBar();
+  renderPhrases();
+}
+
+function exitSelectionMode() {
+  selectionMode = false;
+  selectedItems = new Set();
+  updateSelectionBar();
+  renderPhrases();
+}
+
+document.getElementById('selectionCancelBtn').addEventListener('click', exitSelectionMode);
+document.getElementById('selectionMoveBtn').addEventListener('click', () => {
+  if (selectedItems.size === 0) {
+    showToast('定型文を選択してください');
+    return;
+  }
+  openCategoryPanel({ mode: 'move', items: Array.from(selectedItems), sourceCat: categories[activeIndex] });
+});
+document.getElementById('selectionDeleteBtn').addEventListener('click', () => {
+  if (selectedItems.size === 0) {
+    showToast('定型文を選択してください');
+    return;
+  }
+  if (confirm(selectedItems.size + '件の定型文を削除しますか?')) {
+    const cat = categories[activeIndex];
+    const arr = phrasesData[cat];
+    selectedItems.forEach(it => {
+      const idx = arr.indexOf(it);
+      if (idx !== -1) arr.splice(idx, 1);
+    });
+    const count = selectedItems.size;
+    exitSelectionMode();
+    showToast(count + '件削除しました');
+  }
+});
+
+// マウスホイールでカテゴリ切替(一つずつ)
+const dial = document.getElementById('dial');
+dial.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  changeCategory(e.deltaY > 0 ? 1 : -1);
+}, { passive: false });
+
+document.getElementById('dialUp').addEventListener('click', () => changeCategory(-1));
+
+// ▼を押すとカテゴリ一覧をポップアップ表示
+const categoryPanel = document.getElementById('categoryPanel');
+const overlayBg = document.getElementById('overlayBg');
+
+function openCategoryPanel(moveOptions) {
+  const isMove = !!(moveOptions && moveOptions.mode === 'move');
+  categoryPanel.innerHTML = '';
+
+  if (isMove) {
+    const title = document.createElement('div');
+    title.className = 'category-panel-mode-title';
+    title.textContent = '移動先のカテゴリを選択';
+    categoryPanel.appendChild(title);
+  }
+
+  categories.forEach((cat, i) => {
+    const item = document.createElement('div');
+    item.className = 'category-panel-item' + (i === activeIndex && !isMove ? ' current' : '');
+    item.innerHTML = `<span class="category-name-text">${cat}</span>` +
+      (isMove ? '' : `<span class="category-delete-btn" title="このカテゴリを削除">🗑</span>`);
+    item.addEventListener('click', (e) => {
+      if (e.target.classList.contains('category-delete-btn')) return;
+      if (isMove) {
+        moveItemsToCategory(moveOptions.items, moveOptions.sourceCat, cat);
+      } else {
+        jumpToCategory(i);
+      }
+    });
+    if (!isMove) {
+      item.querySelector('.category-delete-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (categories.length <= 1) {
+          showToast('最後のカテゴリは削除できません');
+          return;
+        }
+        const count = phrasesData[cat].filter(x => x.type === 'phrase').length;
+        if (confirm('「' + cat + '」を削除しますか?(定型文 ' + count + '件も削除されます)')) {
+          const delIndex = categories.indexOf(cat);
+          categories.splice(delIndex, 1);
+          delete phrasesData[cat];
+          if (activeIndex >= categories.length) activeIndex = categories.length - 1;
+          else if (delIndex < activeIndex) activeIndex--;
+          renderDial();
+          renderPhrases();
+          openCategoryPanel();
+          showToast('カテゴリを削除しました');
+        }
+      });
+    }
+    categoryPanel.appendChild(item);
+  });
+
+  const addRow = document.createElement('div');
+  addRow.className = 'category-panel-add';
+  addRow.innerHTML = `
+    <input type="text" placeholder="新しいカテゴリ名" class="category-add-input" id="newCategoryInput">
+    <button class="category-add-btn" id="newCategoryBtn">追加</button>
+  `;
+  categoryPanel.appendChild(addRow);
+  categoryPanel.querySelector('#newCategoryBtn').addEventListener('click', () => {
+    const name = categoryPanel.querySelector('#newCategoryInput').value.trim();
+    if (!name) return;
+    categories.push(name);
+    phrasesData[name] = [];
+    showToast('カテゴリ「' + name + '」を追加しました');
+    if (isMove) {
+      moveItemsToCategory(moveOptions.items, moveOptions.sourceCat, name);
+    } else {
+      jumpToCategory(categories.length - 1);
+    }
+  });
+
+  categoryPanel.style.display = 'block';
+  overlayBg.classList.add('show');
+}
+
+function moveItemsToCategory(items, sourceCat, targetCat) {
+  if (sourceCat === targetCat) {
+    closeCategoryPanel();
+    return;
+  }
+  const srcArr = phrasesData[sourceCat];
+  items.forEach(it => {
+    const idx = srcArr.indexOf(it);
+    if (idx !== -1) srcArr.splice(idx, 1);
+  });
+  phrasesData[targetCat].push(...items);
+  closeCategoryPanel();
+  exitSelectionMode();
+  showToast(items.length + '件を「' + targetCat + '」に移動しました');
+}
+function closeCategoryPanel() {
+  categoryPanel.style.display = 'none';
+  overlayBg.classList.remove('show');
+}
+document.getElementById('dialDown').addEventListener('click', openCategoryPanel);
+document.getElementById('dialCenter').addEventListener('click', openCategoryPanel);
+
+// 定型文の編集パネル
+const editPanel = document.getElementById('editPanel');
+const editLabelInput = document.getElementById('editLabelInput');
+const editContentInput = document.getElementById('editContentInput');
+let editingItem = null;
+let editingIsNew = false;
+let editingInsertIndex = null;
+
+function openEditPanel(item, isNew, insertIndex) {
+  editingItem = item;
+  editingIsNew = !!isNew;
+  editingInsertIndex = (insertIndex === undefined) ? null : insertIndex;
+  editLabelInput.value = item.label;
+  editContentInput.value = item.content;
+  editPanel.style.display = 'block';
+  overlayBg.classList.add('show');
+}
+function closeEditPanel() {
+  editPanel.style.display = 'none';
+  overlayBg.classList.remove('show');
+  editingItem = null;
+  editingIsNew = false;
+  editingInsertIndex = null;
+}
+document.getElementById('editCancelBtn').addEventListener('click', closeEditPanel);
+document.getElementById('editSaveBtn').addEventListener('click', () => {
+  if (editingItem) {
+    const labelInput = editLabelInput.value.trim();
+    editingItem.content = editContentInput.value;
+    editingItem.label = labelInput === '' ? autoLabel(editingItem.content) : labelInput;
+    if (editingIsNew) {
+      const arr = phrasesData[categories[activeIndex]];
+      const idx = (editingInsertIndex === null) ? arr.length : editingInsertIndex;
+      arr.splice(idx, 0, editingItem);
+    }
+  }
+  const wasNew = editingIsNew;
+  closeEditPanel();
+  renderPhrases();
+  showToast(wasNew ? '追加しました' : '保存しました');
+});
+
+document.getElementById('addPhraseBtn').addEventListener('click', () => {
+  openEditPanel({ type: 'phrase', label: '', content: '' }, true);
+});
+
+overlayBg.addEventListener('click', () => {
+  closeCategoryPanel();
+  closeEditPanel();
+});
+
+// 区切り線を追加(末尾)
+document.getElementById('addDividerBtn').addEventListener('click', () => {
+  const cat = categories[activeIndex];
+  phrasesData[cat].push({ type: 'divider', label: '', auto: true });
+  renderPhrases();
+  showToast('区切り線を追加しました');
+});
+
+// ---------- 右クリックメニュー(カーソル位置に挿入) ----------
+const contextMenu = document.getElementById('contextMenu');
+let ctxInsertIndex = null;
+let ctxRowItem = null;
+let ctxRowType = null;
+
+phraseList.addEventListener('contextmenu', (e) => {
+  if (selectionMode) return; // 選択モード中は右クリックメニューを出さない
+  e.preventDefault();
+  const rowEl = e.target.closest('.phrase-row, .divider-row');
+  const cat = categories[activeIndex];
+  ctxInsertIndex = rowEl ? parseInt(rowEl.dataset.index, 10) : phrasesData[cat].length;
+  ctxRowItem = rowEl ? phrasesData[cat][ctxInsertIndex] : null;
+  ctxRowType = rowEl ? (rowEl.classList.contains('phrase-row') ? 'phrase' : 'divider') : null;
+  document.getElementById('ctxSelectMove').style.display = (ctxRowType === 'phrase') ? 'block' : 'none';
+  document.getElementById('ctxDelete').style.display = ctxRowItem ? 'block' : 'none';
+  contextMenu.style.left = e.clientX + 'px';
+  contextMenu.style.top = e.clientY + 'px';
+  contextMenu.style.display = 'block';
+});
+
+document.addEventListener('click', (e) => {
+  if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target)) {
+    contextMenu.style.display = 'none';
+  }
+});
+document.addEventListener('scroll', () => { contextMenu.style.display = 'none'; }, true);
+
+document.getElementById('ctxAddPhrase').addEventListener('click', () => {
+  contextMenu.style.display = 'none';
+  openEditPanel({ type: 'phrase', label: '', content: '' }, true, ctxInsertIndex);
+});
+
+document.getElementById('ctxAddDivider').addEventListener('click', () => {
+  const cat = categories[activeIndex];
+  const idx = ctxInsertIndex === null ? phrasesData[cat].length : ctxInsertIndex;
+  phrasesData[cat].splice(idx, 0, { type: 'divider', label: '', auto: true });
+  contextMenu.style.display = 'none';
+  renderPhrases();
+  showToast('区切り線を追加しました');
+});
+
+document.getElementById('ctxSelectMove').addEventListener('click', () => {
+  contextMenu.style.display = 'none';
+  if (ctxRowItem) enterSelectionMode(ctxRowItem);
+});
+
+document.getElementById('ctxDelete').addEventListener('click', () => {
+  contextMenu.style.display = 'none';
+  if (!ctxRowItem) return;
+  const cat = categories[activeIndex];
+  const arr = phrasesData[cat];
+  if (ctxRowType === 'phrase') {
+    if (confirm('「' + ctxRowItem.label + '」を削除しますか?')) {
+      const idx = arr.indexOf(ctxRowItem);
+      if (idx !== -1) arr.splice(idx, 1);
+      renderPhrases();
+      showToast('削除しました');
+    }
+  } else if (ctxRowType === 'divider') {
+    if (confirm('この区切り線を削除しますか?(中の定型文は削除されません)')) {
+      const idx = arr.indexOf(ctxRowItem);
+      if (idx !== -1) arr.splice(idx, 1);
+      renderPhrases();
+      showToast('区切り線を削除しました');
+    }
+  }
+});
+
+renderDial();
+renderPhrases();
+</script>
+</body>
+</html>
