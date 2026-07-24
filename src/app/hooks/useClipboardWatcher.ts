@@ -4,8 +4,9 @@
 // 「アプリ全体で1箇所だけ」の原則で App.tsx から1回だけ呼ぶこと。
 //
 // 実データ書き込みは HistoryStore.add() 経由(R1: SQLiteが正)。
-// 連続する完全重複は HistoryStore 側で機械的にスキップされるため、
-// 「自分でコピーした内容を監視が拾って二重追加してしまう」問題も自然に解消される。
+// 同一内容の再コピーは HistoryStore 側の MRU方式(古い行を消して最新として入れ直す)で
+// 1行に集約されるため、「自分でコピーした内容を監視が拾って二重の行が残る」問題も
+// 起きない(スキップではなく統合。リッチ本文は add() 側で温存される)。
 
 import { useEffect } from "react";
 import type { HistoryStore } from "../../storage/historyStore";

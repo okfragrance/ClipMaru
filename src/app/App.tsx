@@ -33,7 +33,7 @@ async function setWindowAlwaysOnTop(value: boolean): Promise<void> {
 }
 
 function AppInner() {
-  const { engine, clock, persist, history, report, ready } = useAppState();
+  const { engine, clock, persist, history, report, ready, error } = useAppState();
   useLifecycle(engine, clock, persist); // R4 の配線はここ1箇所だけ
 
   const book = usePhrasebook(engine, persist);
@@ -146,14 +146,16 @@ function AppInner() {
     if (!persist) return;
     try {
       const { save } = await import("@tauri-apps/plugin-dialog");
-      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const { safeWriteJson } = await import("../storage/safeWrite");
       const path = await save({
         defaultPath: `ClipMaru_backup_${todayKey()}.json`,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
       if (!path) return; // キャンセル
       const data = await persist.exportJson();
-      await writeTextFile(path, JSON.stringify(data, null, 2));
+      // tmp→検証(読み戻し一致+JSONパース可)→rename の原子的書き込み。
+      // 途中で失敗しても既存のバックアップファイルは無傷のまま(storage/safeWrite.ts)。
+      await safeWriteJson(path, data);
       toast("バックアップを保存しました");
     } catch {
       toast("バックアップの保存に失敗しました");
@@ -184,6 +186,18 @@ function AppInner() {
     } catch {
       toast("復元に失敗しました。ファイルを確認してください");
     }
+  };
+
+  const clearHistory = async () => {
+    if (
+      !window.confirm(
+        "コピー履歴(テキスト・画像)をすべて消去しますか?この操作は元に戻せません。"
+      )
+    ) {
+      return;
+    }
+    await historyView.clear();
+    toast("履歴をすべて消去しました");
   };
 
   return (
@@ -277,7 +291,19 @@ function AppInner() {
           無いと中身が入りきらないとき内部スクロールされずコンテナ自体が伸びてしまい、
           ホイールスクロールが効かなくなる(40件規模の一覧で顕在化する典型的flexbox罠)。 */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "10px 10px 14px", background: "var(--panel)" }}>
-        {!ready || !engine ? (
+        {error ? (
+          <div style={{ fontSize: 12, padding: 8, lineHeight: 1.6 }}>
+            <p style={{ fontWeight: 700, color: "var(--danger)", margin: "0 0 6px" }}>
+              データの読み込みに失敗しました
+            </p>
+            <p style={{ color: "var(--sub)", margin: "0 0 6px", wordBreak: "break-all" }}>
+              {error}
+            </p>
+            <p style={{ color: "var(--sub)", margin: 0 }}>
+              アプリを再起動しても直らない場合は、バックアップファイルから復元してください。
+            </p>
+          </div>
+        ) : !ready || !engine ? (
           <p style={{ color: "var(--sub)" }}>読み込み中…</p>
         ) : (
           <>
@@ -428,6 +454,27 @@ function AppInner() {
               <span style={{ color: autostart ? "var(--accent-deep)" : "var(--sub)" }}>
                 {autostart ? "ON" : "OFF"}
               </span>
+            </button>
+
+            {/* 履歴の全消去(個別削除は履歴タブの右クリックメニューから) */}
+            <div style={{ fontSize: 10.5, color: "var(--sub)", fontWeight: 700, marginTop: 14, marginBottom: 6 }}>
+              履歴
+            </div>
+            <button
+              onClick={() => void clearHistory()}
+              style={{
+                width: "100%",
+                padding: "7px 10px",
+                borderRadius: 8,
+                border: "2px solid var(--danger)",
+                background: "var(--panel)",
+                color: "var(--danger)",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              コピー履歴をすべて消去
             </button>
 
             <div style={{ fontSize: 10.5, color: "var(--sub)", fontWeight: 700, marginTop: 14, marginBottom: 6 }}>

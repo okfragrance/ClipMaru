@@ -65,6 +65,15 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE blobs ADD COLUMN data_text TEXT;
   `,
+  // v5: blobs.data(旧BLOB宣言列)への二重書き込みをやめ、冗長分を解放する。
+  // v4以降、読み取りは data_text のみを使うため data に実データを二重保持する必要が無く、
+  // 画像1枚あたり容量が2倍になっていた(#4)。data_text を持つ(=完全に復元可能な)行の
+  // data だけを空にして解放する。data_text を持たない古い行は唯一の実体を失わないよう
+  // 触らない(それらは v4 で読めなくなった破損行で、いずれ IMAGE_CAP 超過で自然消滅する)。
+  // 以降の新規書き込みも data には '' を入れる(historyStore.addImage)。NOT NULL は空文字で満たす。
+  `
+  UPDATE blobs SET data = '' WHERE data_text IS NOT NULL;
+  `,
 ];
 
 export async function openDb(): Promise<Database> {
@@ -77,8 +86,15 @@ export async function openDb(): Promise<Database> {
   );
   const userVersion = rows[0]?.user_version ?? 0;
   for (let v = userVersion; v < MIGRATIONS.length; v++) {
-    await db.execute(MIGRATIONS[v]);
-    await db.execute(`PRAGMA user_version = ${v + 1};`);
+    // 1マイグレーション本体と user_version の更新を「1回の execute」にまとめて
+    // BEGIN/COMMIT で包む。tauri-plugin-sql の execute は1呼び出し=単一コネクション
+    // 上で複数文をまとめて流すため、こうすることで両者が同一トランザクションになる。
+    // 途中で失敗すればスキーマ変更も user_version の前進も一緒に巻き戻るので、
+    // 「半分だけ適用され、次回起動で "テーブルが既に存在" して恒久起動不能」という
+    // 事故が起きない(user_version が進んでいなければ、この同じ v から丸ごと再実行される)。
+    await db.execute(
+      `BEGIN;\n${MIGRATIONS[v]}\nPRAGMA user_version = ${v + 1};\nCOMMIT;`
+    );
   }
   return db;
 }

@@ -12,6 +12,8 @@ export interface HistoryView {
   refresh: () => Promise<void>;
   setForcePlain: (id: string, forcePlain: boolean) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** 履歴を全消去(テキスト・画像とも)。設定パネルから呼ぶ */
+  clear: () => Promise<void>;
 }
 
 export function useHistory(store: HistoryStore | null): HistoryView {
@@ -44,5 +46,11 @@ export function useHistory(store: HistoryStore | null): HistoryView {
     [store, refresh]
   );
 
-  return { items, refresh, setForcePlain, remove };
+  const clear = useCallback(async () => {
+    if (!store) return;
+    await store.clear();
+    await refresh();
+  }, [store, refresh]);
+
+  return { items, refresh, setForcePlain, remove, clear };
 }

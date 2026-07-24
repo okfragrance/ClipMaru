@@ -87,11 +87,38 @@ export class HistoryStore {
    * 【MRU方式】同一 content が既に履歴内にあれば、まずその行を削除してから
    * 新しい行として追加する。見た目上は「最新のものが先頭に来て、下にあった同じものは
    * 消える」という単一の履歴行に統合される(フォーマットが plain⇔rich で変わっていても
-   * 同じ文面なら同一クリップとみなす。force_plain トグルは新規コピーとして 0 にリセット)。
-   * 履歴内に同一内容の行が複数残ることはない。
+   * 同じ文面なら同一クリップとみなす)。履歴内に同一内容の行が複数残ることはない。
+   *
+   * 【リッチ保全・重要】リッチ項目を「プレーンでコピー」すると、監視が拾うのは
+   * プレーン(content_rich 無し)なので、素朴に消して入れ直すと content_rich が
+   * 恒久的に失われ、トグルボタンごと消える(リッチ⇔プレーン切替が自壊する)。
+   * これを防ぐため、今回のクリップがプレーンでも、同一 content の既存行がリッチ本文を
+   * 持っていればそれ(と force_plain トグル状態)を引き継ぐ。今回自体がリッチなら
+   * その新しいリッチ本文で更新し、force_plain は新規コピーとして 0 にリセットする。
    */
   async add(clip: NewClip): Promise<string> {
-    // 既存の同一内容を先に消す(あれば)。image行を巻き込まないようformatも絞る。
+    // 既存の同一内容(image以外)にリッチ本文があれば温存対象として拾う。
+    // MRU不変条件より同一 content の行は高々1つなので LIMIT 1 で十分。
+    const existing = await this.db.select<
+      { content_rich: string | null; force_plain: number }[]
+    >(
+      `SELECT content_rich, force_plain FROM history
+       WHERE content = $1 AND format != 'image' AND content_rich IS NOT NULL
+       LIMIT 1`,
+      [clip.content]
+    );
+
+    let contentRich = clip.contentRich ?? null;
+    let format: ClipFormat = clip.format;
+    let forcePlain = 0;
+    if (!contentRich && existing.length > 0) {
+      // 今回はプレーンだが過去にリッチ版を保持していた → リッチとトグル状態を温存
+      contentRich = existing[0].content_rich;
+      format = "rich";
+      forcePlain = existing[0].force_plain;
+    }
+
+    // 既存の同一内容を消してから最新として入れ直す(MRU)。image行は巻き込まない。
     await this.db.execute(
       "DELETE FROM history WHERE content = $1 AND format != 'image'",
       [clip.content]
@@ -101,8 +128,8 @@ export class HistoryStore {
     const now = Date.now();
     await this.db.execute(
       `INSERT INTO history (id, content, content_rich, format, force_plain, created_at)
-       VALUES ($1, $2, $3, $4, 0, $5)`,
-      [id, clip.content, clip.contentRich ?? null, clip.format, now]
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, clip.content, contentRich, format, forcePlain, now]
     );
 
     // 上限を超えた古いテキスト履歴を削除(新しい HISTORY_CAP 件を残す)。
@@ -123,13 +150,30 @@ export class HistoryStore {
   /**
    * クリップボードの画像を1件記録する【R1: 実データはblobsへ、historyは参照IDのみ】。
    * IMAGE_CAP 件を超えたら古いものから削除し、対応する blobs 行も同時に消す(R7)。
+   *
+   * 【MRU・テキストと同じ考え方】同一画像(base64一致)が既に履歴にあれば、その行と
+   * blob を先に削除してから最新として入れ直す。履歴から画像を再コピーすると監視が
+   * 拾い直して addImage が再度呼ばれるため、重複排除しないと同じ画像が積み上がり、
+   * IMAGE_CAP(5枚)の枠から他の画像を押し出してしまう。
    */
   async addImage(clip: NewImageClip): Promise<string> {
+    const dup = await this.db.select<{ id: string; blob_id: string | null }[]>(
+      `SELECT h.id, h.blob_id FROM history h
+       JOIN blobs b ON h.blob_id = b.id
+       WHERE h.format = 'image' AND b.data_text = $1`,
+      [clip.imageBase64]
+    );
+    for (const row of dup) {
+      await this.deleteRowAndBlob(row.id, row.blob_id);
+    }
+
     const blobId = newId();
     const now = Date.now();
+    // 読み取りは data_text のみ(v4)。旧 data 列は NOT NULL を満たすためだけの空文字を入れ、
+    // 実データを二重保持しない(#4: 画像1枚あたり容量2倍の解消)。
     await this.db.execute(
       "INSERT INTO blobs (id, mime, data, data_text, created_at) VALUES ($1, $2, $3, $4, $5)",
-      [blobId, "image/png", clip.imageBase64, clip.imageBase64, now]
+      [blobId, "image/png", "", clip.imageBase64, now]
     );
 
     const id = newId();
