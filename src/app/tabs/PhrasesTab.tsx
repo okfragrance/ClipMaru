@@ -556,6 +556,7 @@ export function PhrasesTab({ book }: { book: Phrasebook }) {
                 style={{
                   flex: 1,
                   fontSize: 12,
+                  fontWeight: 700,
                   cursor: selectionMode ? "inherit" : "pointer",
                   padding: "2px 0",
                 }}

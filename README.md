@@ -5,7 +5,7 @@ Cliborの不満点(並べ替えにCSV書き出しが必要、書式の扱いが�
 19カテゴリ×最大40件規模の大量登録運用に耐える設計。
 
 - 開発者: くにこ(K-Studio3070 / AnnyStation)
-- 技術スタック: Tauri v2 + React + TypeScript / SQLite(`tauri-plugin-sql`)
+- 技術スタック: Tauri v2 + React + TypeScript / SQLite(`tauri-plugin-sql`)/ トレイ・ウィンドウ位置記憶(`tauri-plugin-window-state`)/ ダイアログ・FS(`tauri-plugin-dialog` / `-fs`)
 - 仕様の正: [`ClipMaru_handoff.md`](./ClipMaru_handoff.md) / 実装ルール: [`CLAUDE.md`](./CLAUDE.md)
 
 ## 機能
@@ -31,6 +31,13 @@ Cliborの不満点(並べ替えにCSV書き出しが必要、書式の扱いが�
 ### その他
 - 常に最前面に表示するトグル
 - 配色テーマ切替(クリーム/ダーク)
+- 文字フォント切替(丸ゴシック[Zen Maru Gothic 同梱] / システムのゴシック体 / 明朝体)
+- 文字サイズ切替(小/中/大、UI全体を段階ズーム)
+- Windowsスタートアップ登録(起動時に自動で開く、`tauri-plugin-autostart`)
+- 画像履歴(スクリーンショット等のコピーをサムネイル表示、5件・テキストとは別枠)
+- バックアップ(カテゴリ・定型文をJSONで保存/復元)
+- システムトレイ常駐: ✕で閉じてもトレイに格納、トレイアイコン左クリックで表示/非表示トグル、右クリックメニューから終了。終了時のウィンドウ位置・サイズを記憶して次回復元(`tauri-plugin-window-state`)
+- メイン書体 Zen Maru Gothic を同梱(OFL、`public/fonts/`)
 
 ## コマンド
 

@@ -45,6 +45,8 @@ export const PERSIST_SCHEMA: readonly FieldDef[] = [
       alwaysOnTop: false,
       activeTab: "history",
       activeCategoryId: "",
+      fontFamily: "maru",
+      fontScale: "medium",
     })
   ),
   field("categories", "shared", (): Category[] => []),

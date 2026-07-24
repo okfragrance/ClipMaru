@@ -51,6 +51,12 @@ export interface FolderEntry {
   path: string;
 }
 
+/** メイン書体の選択肢。theme.css の :root[data-font="..."] と対応 */
+export type FontFamilyKey = "maru" | "gothic" | "mincho";
+
+/** 文字サイズ段階。theme.css の :root[data-scale="..."](--font-scale)と対応 */
+export type FontScaleKey = "small" | "medium" | "large";
+
 /** 共有設定(単一ユーザーなので全て shared スコープ) */
 export interface Settings {
   /** 配色テーマ名。theme.css の変数セットと対応(既定はクリーム×オレンジ) */
@@ -61,6 +67,10 @@ export interface Settings {
   activeTab: TabName;
   /** ダイヤルの選択位置復元用に、最後に開いていたカテゴリID */
   activeCategoryId: string;
+  /** メイン書体(丸ゴシック同梱 / システムのゴシック・明朝から選択) */
+  fontFamily: FontFamilyKey;
+  /** 文字サイズ(UI全体を段階ズーム。theme.css の --font-scale) */
+  fontScale: FontScaleKey;
 }
 
 /** クリップボードのフォーマット種別 */

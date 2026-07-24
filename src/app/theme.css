@@ -5,6 +5,27 @@
  * 個別コンポーネントで手書きせず、ここのCSS変数/ユーティリティクラスだけを使う。
  */
 
+/* B3: メイン書体 Zen Maru Gothic を同梱(OFL, public/fonts/)。
+ * public/ は Vite が配信ルート直下(/fonts/…)に置くため、そのまま参照できる。
+ * 定型文/履歴には任意の日本語が入るため subset せず全グリフを持つフルフォントを使う。
+ * TTF(各~3.8MB)は woff2 に変換して同梱(各~1.5MB)。ライセンス原文は
+ * public/fonts/OFL.txt。UI は 400(通常)と 700(見出し/ボタン)しか使わないので
+ * この2ウェイトのみ同梱する。font-display:swap でロード前はフォールバックを表示。 */
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ZenMaruGothic-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ZenMaruGothic-Bold.woff2") format("woff2");
+}
+
 :root {
   /* B1: コアパレット */
   --k3070-bg-cream: #faebd4;
@@ -30,17 +51,48 @@
   /* B2①: ハードドロップシャドウのオフセット(ぼかし0固定) */
   --k3070-shadow-offset: 4px;
 
-  /* B3: メイン書体は未確定(候補: Zen Maru Gothic / M PLUS Rounded 1c /
-   * Kosugi Maru。BRAND_TOKENS.md B7参照)。フォントファイルを同梱するまでは
-   * 丸みのあるシステムフォントにフォールバックする。 */
+  /* B3: メイン書体は Zen Maru Gothic を同梱(上部 @font-face 参照)。
+   * 万一ロードできない場合に備え、丸みのあるシステムフォントへフォールバックする。 */
   --k3070-font-family: "Zen Maru Gothic", "M PLUS Rounded 1c", "Kosugi Maru",
     "Hiragino Maru Gothic ProN", "BIZ UDGothic", sans-serif;
+
+  /* ユーザー選択のフォント/文字サイズ(設定パネル)。
+   * 既定は丸ゴシック(同梱)・等倍。data-font / data-scale で下部が上書きする。 */
+  --font-family: var(--k3070-font-family);
+  --font-scale: 1;
 }
 
 body {
   background: var(--k3070-bg-cream);
-  font-family: var(--k3070-font-family);
+  font-family: var(--font-family);
   color: var(--k3070-outline);
+}
+
+/* 文字サイズ: UI全体を段階ズーム(px直書きが多いので個別スケールではなく
+ * ルートの zoom で一括拡縮する。WebView2=Chromium なので zoom が確実に効く)。
+ * data-font / data-scale は data-theme と同じく documentElement に付与する。 */
+:root {
+  zoom: var(--font-scale);
+}
+:root[data-font="maru"] {
+  --font-family: "Zen Maru Gothic", "M PLUS Rounded 1c", "Kosugi Maru",
+    "Hiragino Maru Gothic ProN", "BIZ UDGothic", sans-serif;
+}
+:root[data-font="gothic"] {
+  --font-family: "Yu Gothic UI", "Yu Gothic", "Meiryo", "BIZ UDGothic",
+    "MS PGothic", sans-serif;
+}
+:root[data-font="mincho"] {
+  --font-family: "Yu Mincho", "YuMincho", "BIZ UDMincho", "MS PMincho", serif;
+}
+:root[data-scale="small"] {
+  --font-scale: 0.9;
+}
+:root[data-scale="medium"] {
+  --font-scale: 1;
+}
+:root[data-scale="large"] {
+  --font-scale: 1.15;
 }
 
 /* B2①: アウトライン + ハードドロップシャドウ(プライマリボタン・カード・主要アイコン枠に適用) */

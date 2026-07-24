@@ -78,7 +78,7 @@ export function HistoryTab({ history }: { history: HistoryView }) {
                 }}
               />
             )}
-            <Tooltip text={item.content} style={{ flex: 1 }}>
+            <Tooltip text={item.content} style={{ flex: 1, fontWeight: 700 }}>
               {item.content}
             </Tooltip>
             {isRich && (
