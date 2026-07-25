@@ -1,0 +1,8 @@
+# ビルド成果物(target)の出力先。リポジトリ外の共有フォルダ配下に、プロジェクト名で
+# 分けて置く(各アプリの exe が分かりやすい別々の場所に出るようにするため)。
+#
+# 【重要】環境変数 CARGO_TARGET_DIR は設定しないこと。CARGO_TARGET_DIR は config の
+# target-dir より優先されるため、設定しているとこの指定が無視され「直したのに戻る」
+# 現象になる(このプロジェクトで実際に起きていた)。
+[build]
+target-dir = "K:/K-Studio3070/Tauri v2_Projects/tauri-target/clipmaru"
