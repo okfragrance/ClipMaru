@@ -1,6 +1,7 @@
 // app/components/CategoryPanel.tsx
 // カテゴリ一覧ポップアップ。
-// ・jump モード(既定): クリックでジャンプ・削除(件数明示・確認)・新規追加。
+// ・jump モード(既定): クリックでジャンプ・名前変更(✎でインライン編集)・
+//   削除(件数明示・確認)・新規追加。
 //   ダイヤルと同じ「マウスホイールで1つずつ切替」もサポート(パネルを開いたまま
 //   連続で切替できる。オーバーレイがダイヤルを覆うため、ここに個別で配線が必要)。
 // ・move モード(選択モードの「移動」から): クリックで移動先に指定・削除ボタンは非表示。
@@ -19,6 +20,7 @@ export interface CategoryPanelProps {
   onJump?: (id: string) => void; // jump モードで使用
   onMoveTarget?: (id: string) => void; // move モードで使用
   onDelete?: (id: string) => boolean; // 実削除は呼び出し側(最後の1つは false)。jump モードのみ表示
+  onRename?: (id: string, name: string) => void; // カテゴリ名の変更。jump モードのみ表示
   onAdd: (name: string) => string | null; // 作成した id を返す(move モードで直接移動するため)
   onClose: () => void;
 }
@@ -30,11 +32,15 @@ export function CategoryPanel({
   onJump,
   onMoveTarget,
   onDelete,
+  onRename,
   onAdd,
   onClose,
 }: CategoryPanelProps) {
   const isMove = mode === "move";
   const [newName, setNewName] = useState("");
+  // インライン名前編集の状態。editingId が非nullの間、その行だけ入力欄に切り替わる。
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
   const toast = useToast();
   const listRef = useRef<HTMLDivElement | null>(null);
   const currentRef = useRef<HTMLDivElement | null>(null);
@@ -43,7 +49,7 @@ export function CategoryPanel({
   // preventDefault が効くよう、ダイヤルと同じくネイティブリスナー(passive:false)で配線。
   useEffect(() => {
     const el = listRef.current;
-    if (!el || isMove || categories.length === 0) return;
+    if (!el || isMove || categories.length === 0 || editingId !== null) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const idx = categories.findIndex((c) => c.id === activeCategoryId);
@@ -54,7 +60,7 @@ export function CategoryPanel({
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [categories, activeCategoryId, isMove, onJump]);
+  }, [categories, activeCategoryId, isMove, onJump, editingId]);
 
   // 切替のたびに、選択中の行が見えるようスクロール追従する
   useEffect(() => {
@@ -81,6 +87,29 @@ export function CategoryPanel({
       onJump?.(id);
     }
     onClose();
+  };
+
+  const startEdit = (cat: Category) => {
+    setEditingId(cat.id);
+    setEditingName(cat.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName("");
+  };
+
+  const commitEdit = () => {
+    if (editingId === null) return;
+    const name = editingName.trim();
+    if (name === "") {
+      // 空名は無効。変更せず編集を閉じる(削除ではない)。
+      cancelEdit();
+      return;
+    }
+    onRename?.(editingId, name);
+    cancelEdit();
+    toast("カテゴリ名を変更しました");
   };
 
   const handleAdd = () => {
@@ -127,17 +156,21 @@ export function CategoryPanel({
 
       {categories.map((cat) => {
         const current = cat.id === activeCategoryId && !isMove;
+        const editing = cat.id === editingId;
         return (
           <div
             key={cat.id}
             ref={current ? currentRef : undefined}
-            onClick={() => handleItemClick(cat.id)}
+            onClick={() => {
+              if (editing) return; // 編集中の行はクリックでジャンプしない
+              handleItemClick(cat.id);
+            }}
             style={{
               padding: "9px 12px",
               fontSize: 12.5,
               fontWeight: 600,
               borderBottom: "1px solid var(--border)",
-              cursor: "pointer",
+              cursor: editing ? "default" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -146,24 +179,95 @@ export function CategoryPanel({
               color: current ? "var(--accent-deep)" : "var(--ink)",
             }}
           >
-            <span>{cat.name}</span>
-            {!isMove && (
-              <span
-                title="このカテゴリを削除"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(cat);
-                }}
-                style={{
-                  fontSize: 11,
-                  color: "var(--sub)",
-                  padding: "2px 6px",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
-              >
-                🗑
-              </span>
+            {editing ? (
+              <>
+                <input
+                  type="text"
+                  autoFocus
+                  value={editingName}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEdit();
+                    else if (e.key === "Escape") cancelEdit();
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: "1.5px solid var(--accent-deep)",
+                    borderRadius: 8,
+                    padding: "4px 8px",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    background: "var(--panel)",
+                    color: "var(--ink)",
+                  }}
+                />
+                <span
+                  title="変更を保存"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    commitEdit();
+                  }}
+                  style={{ fontSize: 12, padding: "2px 6px", cursor: "pointer" }}
+                >
+                  ✓
+                </span>
+                <span
+                  title="キャンセル"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    cancelEdit();
+                  }}
+                  style={{ fontSize: 12, color: "var(--sub)", padding: "2px 6px", cursor: "pointer" }}
+                >
+                  ✕
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {cat.name}
+                </span>
+                {!isMove && (
+                  <>
+                    <span
+                      title="このカテゴリ名を変更"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(cat);
+                      }}
+                      style={{
+                        fontSize: 11,
+                        color: "var(--sub)",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      ✎
+                    </span>
+                    <span
+                      title="このカテゴリを削除"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(cat);
+                      }}
+                      style={{
+                        fontSize: 11,
+                        color: "var(--sub)",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      🗑
+                    </span>
+                  </>
+                )}
+              </>
             )}
           </div>
         );

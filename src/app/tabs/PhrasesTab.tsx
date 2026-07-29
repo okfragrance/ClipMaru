@@ -345,6 +345,7 @@ export function PhrasesTab({ book }: { book: Phrasebook }) {
           mode="jump"
           onJump={(id) => actions.setActiveCategory(id)}
           onDelete={(id) => actions.deleteCategory(id)}
+          onRename={(id, name) => actions.renameCategory(id, name)}
           onAdd={actions.addCategory}
           onClose={closeOverlay}
         />
