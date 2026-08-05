@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code のローカル設定・開発サーバ設定(環境ごとの一時ファイル)
+.claude/
