@@ -23,12 +23,22 @@ import type { Engine } from "../core/engine";
 import type { Persistence } from "../storage/persistence";
 import { todayKey } from "../core/date";
 
-async function setWindowAlwaysOnTop(value: boolean): Promise<void> {
+// 最前面固定の適用結果。ブラウザ(npm run dev)では操作不能なので "unavailable"、
+// Tauri内で実際に失敗したら "failed"(権限不足など。呼び出し側でトースト通知する)。
+type PinResult = "applied" | "unavailable" | "failed";
+
+async function setWindowAlwaysOnTop(value: boolean): Promise<PinResult> {
+  let inTauri = false;
   try {
+    const { isTauri } = await import("@tauri-apps/api/core");
+    inTauri = isTauri();
+    if (!inTauri) return "unavailable"; // Tauri 外(ブラウザ)では何もしない
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     await getCurrentWindow().setAlwaysOnTop(value);
+    return "applied";
   } catch {
-    // Tauri 外(ブラウザ)では何もしない
+    // Tauri内での失敗は本物のエラー(以前は握り潰して無反応になっていた)。
+    return inTauri ? "failed" : "unavailable";
   }
 }
 
@@ -101,12 +111,16 @@ function AppInner() {
     applySetting({ activeTab: t });
   };
 
-  const togglePin = () => {
+  const togglePin = async () => {
     const next = !pinned;
     setPinned(next);
     applySetting({ alwaysOnTop: next });
-    void setWindowAlwaysOnTop(next);
-    toast(next ? "常に手前に表示します" : "通常表示に戻します");
+    const result = await setWindowAlwaysOnTop(next);
+    if (result === "applied") {
+      toast(next ? "最前面に固定しました" : "最前面固定を解除しました");
+    } else if (result === "failed") {
+      toast("最前面の切り替えに失敗しました");
+    }
   };
 
   const changeTheme = (t: string) => {
@@ -235,7 +249,12 @@ function AppInner() {
             ⚙
           </div>
           <div
-            onClick={togglePin}
+            onClick={() => void togglePin()}
+            title={
+              pinned
+                ? "最前面固定 ON: 他のアプリを操作してもClipMaruが手前に残ります"
+                : "最前面固定 OFF: クリックするとClipMaruを常に手前に表示します"
+            }
             style={{
               display: "flex",
               alignItems: "center",
@@ -258,7 +277,7 @@ function AppInner() {
                 background: pinned ? "#4CAF50" : "var(--sub)",
               }}
             />
-            {pinned ? "常に表示 ON" : "常に表示 OFF"}
+            {pinned ? "最前面 ON" : "最前面 OFF"}
           </div>
         </div>
       </div>
