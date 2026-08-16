@@ -4,7 +4,8 @@
 // usePhrasebook / applySetting 経由で必ず Persistence(R2)を通す。
 // 色・角丸は theme.css のCSS変数のみ参照(B6: コンポーネントに直書きしない)。
 //
-// 設定パネル: 配色テーマ / 文字フォント / 文字サイズ / スタートアップ登録 / バックアップ。
+// 設定パネル: 配色テーマ / 文字フォント / 文字サイズ / スタートアップ登録 / バックアップ /
+// バージョン表示(版とビルド日時。古いexeを動かしていないか切り分けるため)。
 
 import { useEffect, useState } from "react";
 import { useAppState } from "./hooks/useAppState";
@@ -34,6 +35,10 @@ async function setWindowAlwaysOnTop(value: boolean): Promise<PinResult> {
     inTauri = isTauri();
     if (!inTauri) return "unavailable"; // Tauri 外(ブラウザ)では何もしない
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    // 【1回だけ呼ぶ】反対値→目的値と連続で投げて確実に差分を作る、という手は
+    // 実機で逆効果だった(最前面にならなくなる)。tao の apply_diff は
+    // SetWindowPos に SWP_ASYNCWINDOWPOS を付けて**非同期ポスト**するため、
+    // NOTOPMOST と TOPMOST を続けて投げると打ち消し合う。素直に1回だけ呼ぶこと。
     await getCurrentWindow().setAlwaysOnTop(value);
     return "applied";
   } catch {
@@ -59,6 +64,7 @@ function AppInner() {
   const [pinned, setPinned] = useState(false);
   const [autostart, setAutostart] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
 
   // 起動して engine が用意できたら設定値をUIへ反映
   useEffect(() => {
@@ -69,8 +75,14 @@ function AppInner() {
     setFontFamily(s.fontFamily);
     setFontScale(s.fontScale);
     setPinned(s.alwaysOnTop);
-    void setWindowAlwaysOnTop(s.alwaysOnTop);
-  }, [ready, engine]);
+    // 復元の失敗を握り潰さない(以前これを void で捨てていたため、トグルは ON の
+    // 見た目なのに最前面になっていない状態に気付けなかった)。
+    void (async () => {
+      if ((await setWindowAlwaysOnTop(s.alwaysOnTop)) === "failed") {
+        toast("最前面設定の復元に失敗しました");
+      }
+    })();
+  }, [ready, engine, toast]);
 
   // テーマ/フォント/文字サイズの差し替え: documentElement の data-* を切り替えるだけ
   // (theme.css 側で :root[data-...] が変数セット・zoom を上書きする)
@@ -97,6 +109,21 @@ function AppInner() {
       }
     })();
   }, [settingsOpen]);
+
+  // バージョン表示。正は tauri.conf.json の version なので、package.json などから
+  // 写さず getVersion() で問い合わせる(3箇所に書くと必ずズレるため)。
+  // 設定を開いた最初の1回だけ取得すればよい。
+  useEffect(() => {
+    if (!settingsOpen || appVersion) return;
+    void (async () => {
+      try {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        setAppVersion(await getVersion());
+      } catch {
+        // Tauri 外(ブラウザ)ではバージョンを出さない
+      }
+    })();
+  }, [settingsOpen, appVersion]);
 
   const applySetting = (patch: Partial<Settings>) => {
     const e = engine as Engine | null;
@@ -533,6 +560,26 @@ function AppInner() {
                 復元
               </button>
             </div>
+            {/* バージョン + ビルド日時。「同じ 0.1.0 の古い exe を動かしていた」を
+                すぐ切り分けられるように、番号だけでなくビルド日時も出す。
+                問い合わせ時にそのまま伝えられるよう選択・コピー可にしておく。 */}
+            <div
+              style={{
+                marginTop: 16,
+                paddingTop: 10,
+                borderTop: "1px solid var(--border)",
+                fontSize: 10,
+                lineHeight: 1.5,
+                color: "var(--sub)",
+                textAlign: "center",
+                userSelect: "text",
+              }}
+            >
+              ClipMaru{appVersion ? ` v${appVersion}` : ""}
+              <br />
+              build {__BUILD_TIME__}
+            </div>
+
             <button
               onClick={() => setSettingsOpen(false)}
               style={{

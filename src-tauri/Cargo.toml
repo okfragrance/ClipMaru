@@ -31,6 +31,13 @@ tauri-plugin-fs = "2"
 tauri-plugin-window-state = "2"
 # Windowsスタートアップ登録(起動時に自動でClipMaruを開く)。設定パネルからトグル。
 tauri-plugin-autostart = "2"
+# 多重起動防止。ClipMaruはトレイ常駐アプリで、ウィンドウを閉じてもプロセスは生き続ける。
+# そのため「起動していないように見える」→ アイコンを再クリック、スタートアップ登録と
+# 手動起動が重なる、といった経路で2つ目・3つ目のプロセスが立ち上がってしまう
+# (トレイアイコンもクリップボード監視も二重になり、履歴が重複登録される)。
+# このプラグインは app identifier(com.annystation.clipmaru)のミューテックスで
+# 2つ目のプロセスを即終了させ、既存インスタンスへコールバックを飛ばす。
+tauri-plugin-single-instance = "2"
 # Windows専用の低レベルクリップボードAPI。ClipMaruはWindows 11向けのみなので
 # クロスプラットフォーム抽象(arboard等)より、CF_HTML(リッチ)を直接扱える
 # こちらを採用(get_html/set_htmlがCF_HTMLヘッダの組み立て/剥がしを担ってくれる)。

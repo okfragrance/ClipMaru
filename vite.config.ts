@@ -4,9 +4,25 @@ import react from "@vitejs/plugin-react";
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+// ビルド日時("YYYY-MM-DD HH:mm" ローカル)を __BUILD_TIME__ として埋め込む。
+// バージョン番号だけでは「同じ 0.1.0 の古い exe」と見分けが付かない
+// (2026-08-16に、7/29ビルドを動かし続けたまま「修正が効かない」と調べる事故が発生)。
+// 設定パネルに出して、どのビルドを動かしているか一目で分かるようにする。
+// ※R3(日付キーは todayKey() のみ)はアプリの日付ロジックの話。ここはビルド時に
+//   一度だけ焼き込むスタンプなので対象外。toISOString は使わずローカル時刻で組む。
+const pad = (n: number) => String(n).padStart(2, "0");
+const t = new Date();
+const buildTime =
+  `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}` +
+  ` ${pad(t.getHours())}:${pad(t.getMinutes())}`;
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

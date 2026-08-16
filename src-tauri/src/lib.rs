@@ -5,6 +5,18 @@ mod tray;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 【多重起動防止】必ず最初に登録する(プラグインのsetupが早いほど、2つ目の
+        // プロセスが他のプラグイン初期化やクリップボード監視スレッドを始める前に
+        // 終了できる)。2つ目の起動は即終了し、代わりにこのコールバックが
+        // 「既に動いているインスタンス側」で呼ばれるので、ユーザーの「もう一度開きたい」
+        // という意図どおり既存ウィンドウを前面に出す。
+        //
+        // ※開発時の注意: 判定キーは app identifier(com.annystation.clipmaru)なので、
+        //   インストール版のClipMaruが常駐したままだと `npm run tauri dev` が即終了する。
+        //   開発前にトレイの「終了」でインストール版を落とすこと。
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tray::show_main_window(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
