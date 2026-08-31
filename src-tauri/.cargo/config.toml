@@ -1,8 +1,18 @@
 # ビルド成果物(target)の出力先。リポジトリ外の共有フォルダ配下に、プロジェクト名で
 # 分けて置く(各アプリの exe が分かりやすい別々の場所に出るようにするため)。
 #
-# 【重要】環境変数 CARGO_TARGET_DIR は設定しないこと。CARGO_TARGET_DIR は config の
-# target-dir より優先されるため、設定しているとこの指定が無視され「直したのに戻る」
-# 現象になる(このプロジェクトで実際に起きていた)。
+# 【重要1】環境変数 CARGO_TARGET_DIR を「恒久的に」設定しないこと。CARGO_TARGET_DIR は
+# config の target-dir より優先されるため、シェルや環境変数に残していると、ここの指定が
+# 黙って無視されて「直したのに戻る」現象になる。
+#
+# 【重要2】このパスに空白を入れないこと。
+# 以前は "Tauri v2_Projects"(空白あり)を指していた。Android の NDK リンカドライバは
+# .cmd のバッチラッパ(aarch64-linux-androidXX-clang.cmd)で、空白入りパスを渡すと cmd が
+# そこで引数を分割し
+#   `v2_Projects/... \linker-arguments"" was unexpected at this time.`
+# でリンクに失敗する(デスクトップ向けビルドでは起きない)。
+# 2026-09-01 に空白なしパス("Tauri_v2_Projects")へ統一した。
+#
+# ※ CARGO_TARGET_DIR が効いてしまう問題は、このプロジェクトで実際に起きていた。
 [build]
-target-dir = "K:/K-Studio3070/Tauri v2_Projects/tauri-target/clipmaru"
+target-dir = "K:/K-Studio3070/Tauri_v2_Projects/tauri-target/clipmaru"
