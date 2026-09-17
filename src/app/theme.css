@@ -1,5 +1,5 @@
 /* app/theme.css
- * BRAND_TOKENS.md(K-Studio3070 ビジュアル基準 v0.1)の実装。
+ * BRAND_TOKENS.md(K-Studio3070 ビジュアル基準 v0.3)の実装。
  * 値を変更する場合はBRAND_TOKENS.mdを先に更新すること(ソースはそちら)。
  * 「違反を構造的に書けない」思想をそのままビジュアルにも適用: 色や角丸を
  * 個別コンポーネントで手書きせず、ここのCSS変数/ユーティリティクラスだけを使う。
@@ -34,13 +34,38 @@
   --k3070-outline-sub: #55423a;
   --k3070-tone-sub: #8f553c;
 
-  /* B1: アクセント4色 + ベビーピンク */
+  /* B1: アクセント6色(ビビッド) */
   --k3070-accent-strawberry: #e0567a;
   --k3070-accent-pistachio: #e3efcb;
   --k3070-accent-lemon: #fee294;
   --k3070-accent-lavender: #ead9f8;
   --k3070-accent-babypink: #febbc8;
   --k3070-accent-babypink-dark: #ed93b1;
+  --k3070-accent-amber: #f2a623;
+  /* B1「CTAの文字色」: 19px未満のラベルを載せるCTA専用(白文字 5.09:1) */
+  --k3070-accent-strawberry-deep: #bd4264;
+
+  /* B1: くすみ tier(soft/dusty は文字の地OK、deep は線・アイコン・ゲージのみ) */
+  --k3070-dusty-soft-strawberry: #fad2d9;
+  --k3070-dusty-soft-amber: #f0dabe;
+  --k3070-dusty-soft-lemon: #e9ddbd;
+  --k3070-dusty-soft-pistachio: #d8e3c3;
+  --k3070-dusty-soft-lavender: #e7d6f5;
+  --k3070-dusty-strawberry: #e9aab5;
+  --k3070-dusty-amber: #dbb788;
+  --k3070-dusty-lemon: #d0bc86;
+  --k3070-dusty-pistachio: #b5c690;
+  --k3070-dusty-lavender: #cdb1e2;
+  --k3070-dusty-deep-strawberry: #cb7486;
+  --k3070-dusty-deep-amber: #ba873d;
+  --k3070-dusty-deep-lemon: #ac8f38;
+  --k3070-dusty-deep-pistachio: #869d4c;
+  --k3070-dusty-deep-lavender: #a77fc5;
+  --k3070-greige-bg: #f3e9df;
+  --k3070-greige-card: #fbf6f0;
+  --k3070-greige-line: #cec1b8;
+  --k3070-mocha: #503e35;
+  --k3070-mocha-2: #7b6358;
 
   /* B2②: 角丸スケール */
   --k3070-radius-card: 16px;
@@ -48,8 +73,20 @@
   --k3070-radius-chip: 999px;
   --k3070-radius-icon-button: 10px;
 
-  /* B2①: ハードドロップシャドウのオフセット(ぼかし0固定) */
-  --k3070-shadow-offset: 4px;
+  /* B2①: ハードドロップシャドウ(ぼかし0固定)。役割別3段スケール(v0.3) */
+  --k3070-shadow-none: 0px;
+  --k3070-shadow-sm: 2px; /* 通貨チップ・小アイコンボタン(高さ40px未満) */
+  --k3070-shadow-md: 3px; /* ボタン・カード・パネル(既定) */
+  --k3070-shadow-lg: 4px; /* モーダル・浮遊パネル・ドラッグ中のみ */
+  --k3070-shadow-offset: var(--k3070-shadow-md); /* v0.2互換名。新規コードでは使わない */
+  --k3070-border-width: 2px;
+
+  /* B2④: 状態トークン(v0.3) */
+  --k3070-disabled-fill: #e7d6be;
+  --k3070-disabled-line: #b7a594;
+  --k3070-disabled-text: #8a7a6e;
+  --k3070-focus-ring: var(--k3070-accent-strawberry);
+  --k3070-press-duration: 80ms;
 
   /* B3: メイン書体は Zen Maru Gothic を同梱(上部 @font-face 参照)。
    * 万一ロードできない場合に備え、丸みのあるシステムフォントへフォールバックする。 */
@@ -95,11 +132,30 @@ body {
   --font-scale: 1.15;
 }
 
-/* B2①: アウトライン + ハードドロップシャドウ(プライマリボタン・カード・主要アイコン枠に適用) */
+/* B2①: アウトライン + ハードドロップシャドウ(カード・チップ・主要アイコン枠の「面」に適用)。
+ * 既定は md。チップ等は .k3070-shadow-sm、浮遊物は .k3070-shadow-lg を併記する。 */
 .k3070-outline-shadow {
-  border: 2px solid var(--k3070-outline);
-  box-shadow: var(--k3070-shadow-offset) var(--k3070-shadow-offset) 0
-    var(--k3070-outline);
+  --_o: var(--k3070-shadow-md);
+  border: var(--k3070-border-width) solid var(--k3070-outline);
+  box-shadow: var(--_o) var(--_o) 0 var(--k3070-outline);
+}
+.k3070-shadow-sm {
+  --_o: var(--k3070-shadow-sm);
+}
+.k3070-shadow-lg {
+  --_o: var(--k3070-shadow-lg);
+}
+.k3070-shadow-none {
+  --_o: var(--k3070-shadow-none);
+}
+
+/* B2① ネスト規則(構造で縛る): 影付きの面の内側にある面は影なし。
+ * 「影の中に影を入れない」。浮遊物(.k3070-shadow-lg)だけは内側でも影を保つ。 */
+.k3070-outline-shadow .k3070-outline-shadow {
+  --_o: var(--k3070-shadow-none);
+}
+.k3070-outline-shadow .k3070-outline-shadow.k3070-shadow-lg {
+  --_o: var(--k3070-shadow-lg);
 }
 
 .k3070-card {
@@ -107,18 +163,75 @@ body {
   background: var(--k3070-bg-cream-light);
 }
 
+/* B2④: 操作子(ボタン・アイコンボタン)。アウトライン+影+状態を内包しているので
+ * .k3070-outline-shadow を併記しない。面の内側にあっても影を持つ(操作できるものは影あり)。 */
+.k3070-button,
+.k3070-icon-button {
+  --_o: var(--k3070-shadow-md);
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--k3070-outline);
+  border: var(--k3070-border-width) solid var(--k3070-outline);
+  box-shadow: var(--_o) var(--_o) 0 var(--k3070-outline);
+  cursor: pointer;
+  transition:
+    transform var(--k3070-press-duration) ease,
+    box-shadow var(--k3070-press-duration) ease;
+}
 .k3070-button {
   border-radius: var(--k3070-radius-button);
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
   padding: 8px 20px;
-  color: var(--k3070-outline);
+  font-size: 14px;
   background: var(--k3070-accent-strawberry);
 }
-
 .k3070-icon-button {
+  --_o: var(--k3070-shadow-sm);
   border-radius: var(--k3070-radius-icon-button);
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--k3070-bg-cream-light);
+}
+.k3070-button--secondary {
+  background: var(--k3070-accent-pistachio);
+}
+/* B1「CTAの文字色」: 19px太字以上ならいちご地+焦げ茶文字でAA(大文字)を満たす */
+.k3070-button--large {
+  font-size: 19px;
+  padding: 10px 24px;
+}
+/* 19px未満のラベルを載せるCTAは深いちご+白文字(5.09:1) */
+.k3070-button--deep {
+  background: var(--k3070-accent-strawberry-deep);
+  color: #ffffff;
+}
+
+:is(.k3070-button, .k3070-icon-button):hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: calc(var(--_o) + 1px) calc(var(--_o) + 1px) 0 var(--k3070-outline);
+}
+:is(.k3070-button, .k3070-icon-button):active:not(:disabled) {
+  transform: translate(var(--_o), var(--_o));
+  box-shadow: 0 0 0 var(--k3070-outline);
+}
+:is(.k3070-button, .k3070-icon-button):focus-visible {
+  outline: 3px solid var(--k3070-focus-ring);
+  outline-offset: 3px;
+}
+:is(.k3070-button, .k3070-icon-button):disabled {
+  background: var(--k3070-disabled-fill);
+  color: var(--k3070-disabled-text);
+  border-color: var(--k3070-disabled-line);
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .k3070-button,
+  .k3070-icon-button {
+    transition: none;
+  }
 }
 
 /* B2③: 通貨チップ(アイコン+数値を角丸ピルに内包)。

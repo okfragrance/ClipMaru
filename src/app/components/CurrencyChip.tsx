@@ -32,7 +32,7 @@ export function CurrencyChip({
 }: CurrencyChipProps) {
   return (
     <span
-      className="k3070-chip k3070-outline-shadow"
+      className="k3070-chip k3070-outline-shadow k3070-shadow-sm"
       style={{ background: ACCENT_VAR[accent] }}
     >
       <span aria-hidden="true">{icon}</span>
